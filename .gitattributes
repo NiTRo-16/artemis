@@ -1,0 +1,6 @@
+# Store and check out text files with LF endings, so shell scripts and config work on the Linux server
+# even when the repository is cloned on Windows.
+* text=auto eol=lf
+
+*.png binary
+*.woff2 binary

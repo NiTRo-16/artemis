@@ -1,0 +1,10 @@
+# Exact versions so every build is the same. playwright must match the Docker base image tag
+# (mcr.microsoft.com/playwright/python:v1.63.0-noble); outside Docker, run: python -m playwright install chromium
+fastapi==0.141.1
+starlette==1.7.0
+pydantic==2.13.5
+uvicorn==0.54.0
+httpx==0.28.1
+dnspython==2.8.0
+tldextract==5.3.2
+playwright==1.63.0

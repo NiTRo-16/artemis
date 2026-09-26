@@ -1,0 +1,94 @@
+# Artemis behind Caddy, which serves HTTPS for your domain with automatic certificates.
+# Setup and checks: see DEPLOY.md.
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    init: true                     # reaps Chromium's child processes
+    shm_size: "1gb"                # Chromium uses /dev/shm; Docker's 64 MB default crashes pages
+    mem_limit: 2g
+    pids_limit: 512
+    cap_drop: [ALL]
+    security_opt:
+      - seccomp=deploy/seccomp_profile.json   # Playwright's profile; lets Chromium's sandbox create namespaces
+      - no-new-privileges:true
+    environment:
+      # Trust X-Forwarded-For only from Caddy's fixed address below. The rate limiter needs the real
+      # client IP, and nothing else should be able to claim one.
+      FORWARDED_ALLOW_IPS: "172.29.0.10"
+      SAFE_BROWSING_API_KEY: ${SAFE_BROWSING_API_KEY:-}
+      URLHAUS_AUTH_KEY: ${URLHAUS_AUTH_KEY:-}
+      ARTEMIS_CHROMIUM_SANDBOX: ${ARTEMIS_CHROMIUM_SANDBOX:-1}
+      # Account emails. Links in them are built from APP_URL, never from the request.
+      APP_URL: https://${DOMAIN:?Set DOMAIN in .env}
+      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST in .env (see DEPLOY.md)}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM in .env}
+    volumes:
+      - artemis_data:/app/data       # accounts and scan history; back this up
+    networks:
+      - front
+      - egress
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  caddy:
+    image: caddy:2.11                # 2.11+ needed for time-based log rotation (roll_interval)
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]      # the only privilege Caddy needs: listening on ports 80 and 443
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # Goes through Caddy to the app; also keeps the access log rotating daily (see deploy/Caddyfile).
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10m
+      timeout: 10s
+      start_period: 30s
+    depends_on:
+      app:
+        condition: service_healthy   # don't serve a deployment whose browser check is broken
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data             # certificates; keep this volume
+      - caddy_config:/config
+      - caddy_logs:/logs             # access log, pruned to 14 days by Caddy itself
+    networks:
+      front:
+        ipv4_address: 172.29.0.10    # fixed, so the app can trust exactly this proxy
+      public: {}
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+networks:
+  front:
+    internal: true                   # Caddy <-> app only, no internet access
+    ipam:
+      config:
+        - subnet: 172.29.0.0/24
+  egress:
+    # The app's route to the internet. deploy/egress-firewall.sh blocks private ranges for this
+    # subnet on the host; keep the two in sync if you change it.
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+  public: {}
+
+volumes:
+  artemis_data:
+  caddy_data:
+  caddy_config:
+  caddy_logs:

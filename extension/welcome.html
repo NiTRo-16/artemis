@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Welcome to Artemis Site Check</title>
+<link rel="stylesheet" href="ext.css">
+</head>
+<body>
+<main class="page">
+  <div class="brand"><img src="icons/icon48.png" alt="">ARTEMIS</div>
+  <h1>Warnings before you open a dangerous site</h1>
+  <p>When warnings are on, Artemis checks each site you open and shows a warning page instead of sites that are reported as phishing or look like they're impersonating a known brand.</p>
+
+  <div class="card">
+    <p><strong>What this sends:</strong> the domain of each site you open (for example <span class="mono">shop.example.com</span>) goes to the Artemis server at <span class="mono" id="server"></span>. The full address, page content, and anything you type are never sent.</p>
+    <p><strong>What stays in your browser:</strong> results are kept for 6 hours so the same site isn't checked twice, and are cleared when you close the browser.</p>
+    <p>Read the <a id="privacy-link" target="_blank" rel="noopener noreferrer">privacy policy</a>. You can turn warnings off any time from the Artemis button in your toolbar.</p>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary" id="enable" type="button">Turn on warnings</button>
+    <button class="btn" id="later" type="button">Not now</button>
+  </div>
+  <p id="done" hidden>Warnings are on. You can close this tab.</p>
+</main>
+<script type="module" src="welcome.js"></script>
+</body>
+</html>

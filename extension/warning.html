@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Warning: dangerous site</title>
+<link rel="stylesheet" href="ext.css">
+</head>
+<body>
+<main class="page warn">
+  <div class="brand"><img src="icons/icon48.png" alt="">ARTEMIS</div>
+  <h1 id="verdict">This site may be dangerous</h1>
+  <p class="mono" id="host"></p>
+  <ul class="list" id="reasons"></ul>
+  <p>Don't enter passwords, card details or personal information unless you're sure this is the site you meant to visit.</p>
+  <div class="actions">
+    <button class="btn primary" id="back" type="button">Go back</button>
+    <button class="btn danger" id="continue" type="button">Continue anyway</button>
+    <a class="btn" id="report" target="_blank" rel="noopener noreferrer">Full report</a>
+  </div>
+</main>
+<script type="module" src="warning.js"></script>
+</body>
+</html>

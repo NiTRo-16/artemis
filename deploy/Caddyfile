@@ -1,0 +1,29 @@
+{
+	email {$ACME_EMAIL}
+}
+
+# Port 8080 is reachable only inside Docker. The healthcheck in docker-compose.yml requests it every
+# 10 minutes, which checks Caddy -> app end to end and guarantees the access log gets written (and so
+# rotated and pruned) every day, even with no visitors.
+{$DOMAIN}, http://:8080 {
+	encode zstd gzip
+	# Same limit as the app (64 KB); refused here before reaching it.
+	request_body {
+		max_size 64KB
+	}
+	# Caddy sets X-Forwarded-For to the real client address and ignores any value the client sends.
+	reverse_proxy app:8000
+	header -Server
+
+	# The only log holding visitor IP addresses. Rolled daily; rolled files are deleted after 12 days.
+	# An entry can sit up to a day in the live file and a day more before the next roll deletes its
+	# file, so nothing is kept longer than 14 days (the period stated in the privacy policy).
+	# roll_keep 0 turns off the count-based limit so age alone decides.
+	log {
+		output file /logs/access.log {
+			roll_interval 24h
+			roll_keep_for 288h
+			roll_keep 0
+		}
+	}
+}

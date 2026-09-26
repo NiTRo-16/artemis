@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy policy · Artemis</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/legal.css">
+</head>
+<body>
+
+<header><div class="wrap"><a class="brand" href="/">ARTEMIS</a></div></header>
+
+<main>
+  <div class="wrap">
+    <h1>Privacy policy</h1>
+    <p class="updated">Last updated: 26 September 2026</p>
+
+    <h2>Who we are</h2>
+    <p>Artemis is operated by Team Artemis. This policy covers the Artemis website and the Artemis Site Check browser extension, and explains what information they handle.</p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li><strong>The domain or link you enter.</strong> We use it only to run the scan you asked for.</li>
+      <li><strong>Your IP address.</strong> We hold it in server memory, not on disk, to limit how many scans and sign-in attempts each visitor can make, and discard it once it's no longer needed for that. Our web server also records it in an access log, together with the time and the page requested. We delete access log entries after 14 days. Our hosting provider may keep its own network records under its own policy.</li>
+    </ul>
+    <p>You can use Artemis without an account. If you choose to create one, we also keep:</p>
+    <ul>
+      <li><strong>Your email address and password.</strong> The password is stored only as a salted scrypt hash, so we can't read it. We use your email address only for account emails: the link to confirm it, password-reset links, and notices when someone tries to sign up with it or your password changes. We never send marketing.</li>
+      <li><strong>Your settings</strong> (theme and how sites open), so they follow you to other devices.</li>
+      <li><strong>Your scan history:</strong> the domains and links you scanned while signed in, with their results and times. We keep your most recent 200 scans.</li>
+    </ul>
+    <p>We keep these until you clear your history or delete your account, which you can do at any time in Settings. Deleting your account removes all of it straight away. If an account's email address is never confirmed, we delete the account after 7 days.</p>
+    <p>Account emails are delivered through our email provider, which receives your email address and the message so it can deliver it. Links in these emails work once and expire after 24 hours (confirmation) or 1 hour (password reset).</p>
+    <p>Everything the site needs, including its fonts, is served from our own server. Your browser doesn't connect to any other service while you use Artemis, unless you follow a link to a scanned site.</p>
+
+    <h2>What we don't do</h2>
+    <ul>
+      <li>We don't use analytics or advertising trackers. The only cookie is the one that keeps you signed in for up to 30 days, set only if you sign in, and removed when you log out. Your settings are also saved in your browser's local storage.</li>
+      <li>We don't save scans made while signed out. Each result is sent to your browser and not stored on our server.</li>
+      <li>We don't sell or rent personal information.</li>
+    </ul>
+
+    <h2>Services we contact during a scan</h2>
+    <p>To check a domain, our server contacts the services below. They receive the domain you scanned and our server's IP address, not yours.</p>
+    <ul>
+      <li>The website you scan. We connect to it over HTTPS and load its homepage, the page you linked to if you pasted a link, and its favicon. We also open that page in an isolated browser on our server and let its scripts run, so the page may in turn contact other services it uses, the same way it would in your browser.</li>
+      <li>Our hosting provider's DNS resolver, to look up the site's address, and Cloudflare (1.1.1.1) and Google (8.8.8.8) public DNS, to read its email and certificate authority records.</li>
+      <li>rdap.org and the registry responsible for the domain, for its registration date and registrar.</li>
+      <li>SSLMate Cert Spotter, and crt.sh if Cert Spotter is unavailable, for the domain's certificate history.</li>
+      <li>Google Safe Browsing and abuse.ch URLhaus, if they are enabled on this site.</li>
+    </ul>
+    <p>We also download OpenPhish's public list of phishing sites, and the favicons of well-known brands from their official websites so we can spot copies. Both are downloaded without reference to your scan, so OpenPhish and those brands don't learn which domains you check.</p>
+
+    <h2>Browser extension</h2>
+    <p>Artemis Site Check does nothing until you turn on warnings. When they're on, it sends the domain of each site you open (not the full address, page content or anything you type) to our server, which checks it against phishing lists, registration records and known brand names. We don't store these domains or connect them to you or your account. Each domain's result is kept on our server for up to 6 hours, and in your browser until you close it, so the same site isn't checked repeatedly. Checks from the extension appear in our access log like any other request, without the domain.</p>
+
+    <h2>Your rights</h2>
+    <p>Depending on where you live, you may have the right to ask for access to, correction of or deletion of personal information we hold about you. If you have an account, you can clear your history or delete your account yourself in Settings. For anything else, email <a href="mailto:artemis_secure@gmail.com">artemis_secure@gmail.com</a>.</p>
+
+    <h2>Children</h2>
+    <p>Artemis is not directed at children under 13, and we don't knowingly collect information from them.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If we change how Artemis handles information, we'll update this page and the date at the top.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy: <a href="mailto:artemis_secure@gmail.com">artemis_secure@gmail.com</a>.</p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>ARTEMIS</span>
+    <nav><a href="/privacy">Privacy policy</a><a href="/terms">Terms and conditions</a></nav>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Artemis Site Check</title>
+<link rel="stylesheet" href="ext.css">
+</head>
+<body class="popup">
+  <div class="brand"><img src="icons/icon32.png" alt="">ARTEMIS</div>
+  <h2 class="mono" id="host">This page</h2>
+  <p class="verdict" id="verdict">Checking…</p>
+  <p class="small" id="summary"></p>
+  <div class="actions"><a class="btn" id="report" target="_blank" rel="noopener noreferrer" hidden>Full report</a></div>
+  <label class="toggle"><input type="checkbox" id="enabled"> Warn me before dangerous sites</label>
+  <p class="small">Sends only the domain of sites you open. <a id="privacy-link" target="_blank" rel="noopener noreferrer">Privacy policy</a></p>
+<script type="module" src="popup.js"></script>
+</body>
+</html>

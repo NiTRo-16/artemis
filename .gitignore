@@ -1,0 +1,13 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Local accounts database (users, password hashes, scan history)
+data/
+
+# Secrets
+.env
+
+# Local tool settings
+.claude/
