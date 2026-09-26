@@ -355,6 +355,8 @@
   .dlg-close{ background: none; border: none; color: var(--text-dim); cursor: pointer; font: 500 13px var(--font-mono); padding: 6px; }
   .dlg-close:hover{ color: var(--text); }
   .dlg-note{ font-size: 13px; color: var(--text-dim); margin-top: 6px; }
+  .dlg-note a{ color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+  .dlg-note a:hover{ color: var(--teal); }
   .dlg-section{ margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
   .dlg-section h3{ font-size: 14px; font-weight: 600; margin-bottom: 4px; }
   .dlg-actions{ display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
@@ -519,6 +521,7 @@
     <label class="field" id="password-field"><span id="auth-password-label">Password</span>
       <input id="auth-password" type="password" autocomplete="new-password" maxlength="128"></label>
     <p class="form-error" id="auth-error" role="alert" hidden></p>
+    <p class="dlg-note" id="auth-consent">By creating an account, you agree to the <a href="/terms" target="_blank" rel="noopener">Terms and conditions</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy policy</a>.</p>
     <div class="dlg-actions">
       <button class="btn primary" id="auth-submit" type="submit">Create account</button>
       <button class="btn" id="forgot-btn" type="button" hidden>Forgot password?</button>
@@ -571,6 +574,7 @@
   <p class="risk-target" id="risk-target-url"></p>
   <ul class="risk-list" id="risk-list"></ul>
   <p class="dlg-note">Don't enter passwords, card details or personal information unless you're sure this is the site you meant to visit.</p>
+  <p class="dlg-note">If you continue, you visit this site at your own risk. Artemis isn't responsible for what happens there. See the <a href="/terms" target="_blank" rel="noopener">Terms and conditions</a>.</p>
   <div class="dlg-actions">
     <button class="btn primary" type="button" data-close>Go back</button>
     <a class="btn danger" id="risk-continue" rel="noopener noreferrer">Continue to site</a>

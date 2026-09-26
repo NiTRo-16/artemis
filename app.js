@@ -369,6 +369,7 @@ function openAuth(mode) {
   }
   $("auth-submit").textContent = m.submit;
   $("forgot-btn").hidden = mode !== "login";
+  $("auth-consent").hidden = mode !== "signup";
   $("auth-error").hidden = true;
   $("auth-form").hidden = false;
   $("auth-sent").hidden = true;
