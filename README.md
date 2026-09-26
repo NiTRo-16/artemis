@@ -97,6 +97,11 @@ every redirect and pinned to the checked address, so it can't be used to reach p
 headless browser runs with Chromium's sandbox, a fresh profile per scan, and limits on requests, size
 and time. To report a security problem, email artemis_secure@gmail.com.
 
+## License
+
+Artemis is released under the [MIT License](LICENSE). The third-party material below keeps its own
+license.
+
 ## Third-party material
 
 - Space Grotesk and IBM Plex Mono fonts, SIL Open Font License 1.1 (see `fonts/*-OFL.txt`)
