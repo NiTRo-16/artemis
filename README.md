@@ -1,9 +1,9 @@
 # Artemis
 
-Artemis checks a website's security and whether it's impersonating a known brand. Enter a domain or
-paste a link, and it reports on the site's certificate, security headers, cookies and email records,
-flags lookalike domains, fake login pages and payment scams, and says whether it's safe to continue.
-It also checks UPI payment links.
+Artemis checks a website's security and whether it's impersonating a known brand. Enter a domain,
+paste a link or paste a UPI payment link, and it reports on the site's certificate, security headers,
+cookies and email records, flags lookalike domains, fake login pages and payment scams, and says whether
+it's safe to continue.
 
 All checks are passive: Artemis reads what an ordinary visitor's browser would receive. It never logs
 in, probes for hidden pages or tests for vulnerabilities.
@@ -20,8 +20,8 @@ in, probes for hidden pages or tests for vulnerabilities.
 Each category gets a grade, and the site gets an overall risk score of Low, Medium or High.
 
 **Impersonation**
-- Lookalike domain names for about 70 commonly impersonated brands and payment providers: typos, swapped letters, characters
-  from other alphabets, brand names in subdomains
+- Lookalike domain names for about 70 commonly impersonated brands and payment providers: typos,
+  swapped letters, characters from other alphabets, brand names in subdomains
 - Domain age from registration records, and certificate history from public logs
 - Phishing and malware lists: OpenPhish, plus Google Safe Browsing and URLhaus if you add API keys
 - Fake login pages: password or card forms on a page presenting itself as a brand, forms that send data
@@ -29,22 +29,58 @@ Each category gets a grade, and the site gets an overall risk score of Low, Medi
   browser, so forms built by JavaScript are found too.
 
 **Payments**
-- UPI links (`upi://pay?...`) and UPI IDs: refund, prize or KYC bait, bank or police names in the payee,
-  unusual link types. Read from the link alone; nothing is fetched.
-- Payment pages on Razorpay, PayU, Cashfree, Stripe, PayPal and other providers: confirms the provider is
-  real and checks the page for borrowed brand names and bait.
-- Any page asking for a UPI PIN or ATM PIN, or card details on a new site, without HTTPS, or sent to
-  another site. Card fields inside a provider's secure frame are recognised as the provider's.
 
-**Reports**
-Sites and UPI IDs showing warning signs get a "Report" button. Reports are stored for the team to review
-with `reports.py` and never change a result by themselves. The dialog also links to Google Safe Browsing,
-India's cybercrime portal and the 1930 helpline.
+Results include a Payment section whenever a payment is involved, with a verdict of "No payment warning
+signs", "Check before paying" or "Likely payment scam".
+
+- **UPI links and UPI IDs.** Paste `upi://pay?pa=...` (the text inside a UPI QR code) or a bare ID like
+  `name@okaxis`. Artemis shows who gets paid, the name and amount in the link, and the UPI app, and flags:
+  - bait that makes paying look like receiving money: refund, prize, cashback, reward
+  - pretexts: KYC updates, account unblocking, customer care
+  - bank, brand, police, RBI or tax names in the payee
+  - link types other than an ordinary payment
+
+  UPI links are read as text and never fetched. Artemis can't see who owns a UPI ID, so it also reminds
+  people to check the registered name their UPI app shows before paying.
+- **Payment pages on real providers.** Razorpay, PayU, Cashfree, Instamojo, CCAvenue, BillDesk, Stripe,
+  PayPal, Paytm and PhonePe. Artemis confirms the address really belongs to the provider, points out that
+  anyone can create a payment page there, and warns when the page borrows a well-known name or uses bait.
+  Lookalikes such as `raz0rpay` are caught by the impersonation check.
+- **Fake payment pages on any site.**
+  - Asking for a UPI PIN, MPIN or ATM PIN is marked as a likely scam: no genuine website needs these.
+  - Card details are flagged on a site less than 90 days old, without HTTPS, or sent to another site
+    that isn't a payment provider.
+  - Card fields inside a provider's secure frame (Stripe, Razorpay and others) count as the provider's,
+    not the shop's.
+
+**Reporting sites**
+
+Sites and UPI IDs showing signs of phishing, malware or a payment scam get a "Report this site" (or
+"Report this UPI ID") button. The visitor picks a reason and can add a note. Reports are stored for Team
+Artemis to review and never change a result by themselves, so nobody can get a genuine site flagged. The
+same dialog links to Google Safe Browsing, India's National Cyber Crime Reporting Portal and the 1930
+cyber fraud helpline.
+
+To review reports:
+
+```bash
+python reports.py                       # reports not yet reviewed, newest first
+python reports.py done example.com      # mark a site's reports as reviewed
+python reports.py --all                 # include reviewed ones
+```
+
+Reports are deleted after a year.
+
+**Recent searches**
+
+Clicking the search bar shows the last 5 successful searches. Typing filters them, and the arrow keys,
+Enter and Escape work. They're kept only in the visitor's browser and can be removed with "Clear".
 
 **Accounts (optional)**
+
 Scanning works without an account. Signing up adds scan history, settings synced across devices and a
-higher scan limit. Accounts use email confirmation and password reset, or "Continue with Google". The last
-5 searches appear under the search bar for everyone, stored only in the browser.
+higher scan limit (30 scans a minute instead of 10). People can sign up with an email and password, which
+they confirm by email and can reset, or with "Continue with Google" when it's set up.
 
 **Chrome extension**
 [`extension/`](extension/) warns before you open a site that's reported as phishing or likely
@@ -66,6 +102,10 @@ uvicorn main:app --port 8000
 Open http://localhost:8000. Locally, account emails (confirmation and reset links) are printed to the
 server log instead of being sent, so sign-up works without an email provider.
 
+To try the payment check, scan `upi://pay?pa=support.refund@ybl&pn=Customer%20Care&tn=Refund`. To try
+Google sign-in locally, add `http://localhost:8000/api/auth/google/callback` as a redirect URI on your
+Google OAuth client and set the two `GOOGLE_` variables below.
+
 ## Configuration
 
 Set these as environment variables. All are optional for local use.
@@ -75,10 +115,10 @@ Set these as environment variables. All are optional for local use.
 | `APP_URL` | Public address used in email links, e.g. `https://your-domain`. Defaults to `http://localhost:8000` |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY`, `SMTP_USERNAME`, `SMTP_PASSWORD` | Email provider for account emails. `SMTP_SECURITY` is `starttls` (port 587) or `ssl` (port 465) |
 | `MAIL_FROM` | Sender, e.g. `Artemis <no-reply@your-domain>` |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Enables "Continue with Google". See DEPLOY.md |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Enables "Continue with Google". Set both or neither; the button is hidden without them. See DEPLOY.md |
 | `SAFE_BROWSING_API_KEY` | Enables Google Safe Browsing lookups |
 | `URLHAUS_AUTH_KEY` | Enables abuse.ch URLhaus lookups |
-| `ARTEMIS_DB` | Path to the SQLite accounts database. Defaults to `data/artemis.db` |
+| `ARTEMIS_DB` | Path to the SQLite database of accounts and site reports. Defaults to `data/artemis.db` |
 | `ARTEMIS_CHROMIUM_SANDBOX` | Leave at `1`. See DEPLOY.md before changing it |
 
 On a public domain the server refuses to report healthy without `SMTP_HOST`, since nobody could confirm
@@ -87,8 +127,9 @@ an account.
 ## Deploying
 
 [DEPLOY.md](DEPLOY.md) covers the Docker setup: the app behind Caddy with automatic HTTPS, a host
-firewall that stops the headless browser reaching private networks, log retention, backups and
-troubleshooting. Copy [.env.example](.env.example) to `.env` to start.
+firewall that stops the headless browser reaching private networks, setting up Google sign-in,
+reviewing site reports, log retention, backups and troubleshooting. Copy [.env.example](.env.example)
+to `.env` to start.
 
 ## Project layout
 
@@ -114,7 +155,14 @@ troubleshooting. Copy [.env.example](.env.example) to `.env` to start.
 Everything Artemis fetches on a user's behalf is restricted to public internet addresses, checked at
 every redirect and pinned to the checked address, so it can't be used to reach private networks. The
 headless browser runs with Chromium's sandbox, a fresh profile per scan, and limits on requests, size
-and time. To report a security problem, email artemis_secure@gmail.com.
+and time.
+
+Passwords are stored as scrypt hashes and session tokens only as hashes. Google sign-in uses PKCE, a
+state value tied to the browser and a nonce, and accepts only emails Google has verified. It links to an
+existing account only if that account's email was already confirmed. Accounts without a password
+(created with Google) need a sign-in from the last 15 minutes to be deleted.
+
+To report a security problem, email artemis_secure@gmail.com.
 
 ## License
 
