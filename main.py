@@ -36,6 +36,7 @@ OAUTH_COOKIE = "artemis_oauth"      # ties a Google sign-in to the browser that 
 MAX_BODY_BYTES = 64 * 1024        # largest accepted request body; every API body is tiny
 MAX_CONCURRENT_SCANS = 8          # full scans at once, across all visitors
 MAX_CONCURRENT_CHECKS = 16        # extension checks at once
+RECENT_SIGNIN_SECONDS = 15 * 60   # accounts without a password must have signed in this recently to delete
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
 CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")   # all but tab and newline
 
@@ -475,8 +476,13 @@ async def delete_account(body: Confirm, request: Request, response: Response) ->
     if db.has_password(user):
         if not await asyncio.to_thread(db.verify_password, body.password, user["password_hash"]):
             raise HTTPException(401, "Password is incorrect.")
-    elif body.password.strip().lower() != user["email"].lower():   # Google-only account: type the email instead
-        raise HTTPException(401, "That isn't your account's email address.")
+    else:
+        # Google-only account: no password to ask for, so require a sign-in from the last few minutes
+        # (someone at a computer left signed in can't do it) and the email typed out.
+        if time.time() - user["signed_in_at"] > RECENT_SIGNIN_SECONDS:
+            raise HTTPException(403, "For your security, log out and sign in with Google again, then delete your account.")
+        if body.password.strip().lower() != user["email"].lower():
+            raise HTTPException(401, "That isn't your account's email address.")
     db.delete_user(user["id"])
     response.delete_cookie(SESSION_COOKIE, path="/")
     return {"ok": True}

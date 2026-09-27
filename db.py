@@ -165,8 +165,9 @@ def end_session(token: str) -> None:
 def user_for_session(token: str | None) -> sqlite3.Row | None:
     if not token:
         return None
-    return _one("""SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id
-                   WHERE token_hash = ? AND expires_at > ?""", (_token_hash(token), int(time.time())))
+    return _one("""SELECT users.*, sessions.expires_at - ? AS signed_in_at
+                   FROM sessions JOIN users ON users.id = sessions.user_id
+                   WHERE token_hash = ? AND expires_at > ?""", (SESSION_SECONDS, _token_hash(token), int(time.time())))
 
 
 # ---------- users ----------
