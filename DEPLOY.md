@@ -28,6 +28,10 @@ internet.
    DKIM DNS records your provider gives you, or the emails will land in spam. Without `SMTP_HOST` the
    deployment refuses to start, since nobody could confirm an account.
 
+   Optional: to offer "Continue with Google", create a Google OAuth client (see
+   [Google sign-in](#google-sign-in) below) and put its ID and secret in `GOOGLE_CLIENT_ID` and
+   `GOOGLE_CLIENT_SECRET`. Leave both empty and the button doesn't appear.
+
 3. Build and start:
 
    ```bash
@@ -80,6 +84,45 @@ To confirm the firewall, this must fail (time out or be refused):
 docker compose exec app python -c "import urllib.request; urllib.request.urlopen('http://169.254.169.254/', timeout=3)"
 ```
 
+## Google sign-in
+
+1. In the [Google Cloud console](https://console.cloud.google.com/), create a project, then open
+   **Google Auth Platform** (called "OAuth consent screen" in older versions of the console).
+2. Set it up as an **External** app. Give the app name (Artemis), a support email, your domain as an
+   authorized domain, and the links `https://YOUR-DOMAIN/privacy` and `https://YOUR-DOMAIN/terms`.
+   Artemis asks only for the `openid` and `email` scopes, which don't need Google's app review.
+   Publish the app, or only the test users you add can sign in.
+3. Under **Clients**, create an OAuth client of type **Web application** with this authorized redirect URI,
+   exactly:
+
+   ```
+   https://YOUR-DOMAIN/api/auth/google/callback
+   ```
+
+4. Put the client ID and secret in `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then run
+   `docker compose up -d`.
+
+If only one of the two is set, `/healthz` reports `degraded` and the log says why. For local testing, add
+`http://localhost:8000/api/auth/google/callback` as a second redirect URI.
+
+## Reviewing site reports
+
+Reports sent with "Report this site" are stored for your team and never change a result by themselves.
+To read them:
+
+```bash
+docker compose exec app python reports.py
+```
+
+This lists reports not yet reviewed, newest first, with how many reports each site has. Once you've
+looked at a site (for example, reported it to Google Safe Browsing), mark its reports as reviewed:
+
+```bash
+docker compose exec app python reports.py done example.com
+```
+
+`python reports.py --all` also shows reviewed ones. Reports are deleted after a year.
+
 ## Updating
 
 Copy the new files over the old ones, then:
@@ -93,7 +136,7 @@ rebuilds. Don't delete them.
 
 ## Backups
 
-`artemis_data` holds user accounts, settings and scan history. Back it up regularly, for example daily:
+`artemis_data` holds user accounts, settings, scan history and site reports. Back it up regularly, for example daily:
 
 ```bash
 docker compose exec app python -c "import sqlite3; sqlite3.connect('/app/data/artemis.db').backup(sqlite3.connect('/app/data/backup.db'))"

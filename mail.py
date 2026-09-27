@@ -108,14 +108,14 @@ If you didn't sign up for Artemis, ignore this email and no account will be crea
 def send_already_registered(to: str) -> None:
     send(to, "Sign-up attempt for your Artemis account", f"""Someone tried to create an Artemis account with this email address, but you already have one.
 
-If it was you, log in at {APP_URL} . If you've forgotten your password, choose "Forgot password" there.
+If it was you, log in at {APP_URL} . If you've forgotten your password, or you usually use "Continue with Google", you can also choose "Forgot password" there to set one.
 
 If it wasn't you, you don't need to do anything. Your account hasn't changed.
 """)
 
 
 def send_reset(to: str, token: str) -> None:
-    send(to, "Reset your Artemis password", f"""To choose a new password for your Artemis account, open this link:
+    send(to, "Reset your Artemis password", f"""To choose a new password for your Artemis account, open this link. If you sign in with Google, this adds a password; Google sign-in keeps working.
 
 {link("/reset", token)}
 

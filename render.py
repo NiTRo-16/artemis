@@ -60,6 +60,10 @@ EXTRACT_JS = r"""
   const abs = (u) => { if (!u) return null; try { return new URL(u, document.baseURI).href; } catch (e) { return null; } };
   const CARD = /card.?(num|no)|cc.?num|cvv|cvc|\bcsc\b|expir/i;
   const CARD_AUTO = ["cc-number", "cc-csc", "cc-exp", "cc-exp-month", "cc-exp-year"];
+  const PIN = /upi.?pin|\bm.?pin\b|atm.?pin/i;          // same patterns as clone.py
+  const OTP = /\botp\b|one.?time.?(pass|code)/i;
+  const blank = (action, loose) => ({ action, password: false, card: false, pin: false, otp: false, loose,
+                                      frame: location.hostname || null });
   const roots = [document];
   const walk = (root) => {
     for (const el of root.querySelectorAll("*")) {
@@ -69,7 +73,7 @@ EXTRACT_JS = r"""
   walk(document);
 
   const forms = new Map();
-  const loose = { action: null, password: false, card: false };
+  const loose = blank(null, true);
   let seen = 0;
   for (const root of roots) {
     for (const input of root.querySelectorAll("input")) {
@@ -78,18 +82,20 @@ EXTRACT_JS = r"""
       const form = input.form;
       if (form) {
         if (!forms.has(form)) {
-          forms.set(form, { action: form.hasAttribute("action") ? abs(form.getAttribute("action")) : null,
-                            password: false, card: false });
+          forms.set(form, blank(form.hasAttribute("action") ? abs(form.getAttribute("action")) : null, false));
         }
         target = forms.get(form);
       }
       if ((input.type || "").toLowerCase() === "password") target.password = true;
-      const hints = [input.name, input.id, input.placeholder].join(" ");
-      if (CARD_AUTO.includes((input.autocomplete || "").toLowerCase()) || CARD.test(hints)) target.card = true;
+      const hints = [input.name, input.id, input.placeholder, input.getAttribute("aria-label") || ""].join(" ");
+      const autocomplete = (input.autocomplete || "").toLowerCase();
+      if (CARD_AUTO.includes(autocomplete) || CARD.test(hints)) target.card = true;
+      if (PIN.test(hints)) target.pin = true;
+      if (autocomplete === "one-time-code" || OTP.test(hints)) target.otp = true;
     }
   }
   const outForms = [...forms.values()];
-  if (loose.password || loose.card) outForms.push(loose);
+  if (loose.password || loose.card || loose.pin || loose.otp) outForms.push(loose);
 
   const meta = {};
   for (const m of document.querySelectorAll("meta")) {

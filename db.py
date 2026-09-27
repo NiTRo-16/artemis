@@ -1,4 +1,4 @@
-"""SQLite storage for optional accounts: users, login sessions and scan history.
+"""SQLite storage for optional accounts (users, login sessions, scan history) and site reports.
 
 Passwords are stored as scrypt hashes; session tokens only as SHA-256 hashes, so a copy of the
 database can't be used to sign in.
@@ -23,6 +23,9 @@ DEFAULT_SETTINGS = {"theme": "system", "same_tab": False}
 VERIFY_SECONDS = 24 * 3600         # email confirmation links
 RESET_SECONDS = 3600               # password reset links
 UNVERIFIED_SECONDS = 7 * 24 * 3600  # unconfirmed accounts are deleted after this
+REPORT_SECONDS = 365 * 24 * 3600   # site reports are deleted after a year
+REPORT_CATEGORIES = ("phishing", "malware", "payment", "other")
+NO_PASSWORD = "none"   # password_hash of an account that signs in only with Google; matches no password
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -54,6 +57,17 @@ CREATE TABLE IF NOT EXISTS email_tokens (
     purpose TEXT NOT NULL CHECK (purpose IN ('verify', 'reset')),
     expires_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY,
+    target TEXT NOT NULL,
+    host TEXT NOT NULL,
+    category TEXT NOT NULL CHECK (category IN ('phishing', 'malware', 'payment', 'other')),
+    details TEXT NOT NULL DEFAULT '',
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at INTEGER NOT NULL,
+    reviewed INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS reports_by_host ON reports(host, created_at DESC);
 """
 
 _lock = threading.RLock()   # re-entrant: conn() may be first called from inside a locked helper
@@ -70,10 +84,14 @@ def conn() -> sqlite3.Connection:
         _conn.execute("PRAGMA foreign_keys = ON")
         _conn.execute("PRAGMA journal_mode = WAL")
         _conn.executescript(SCHEMA)
-        # Databases created before email verification existed: add the column.
+        # Databases created before email verification or Google sign-in existed: add the columns.
         columns = {row["name"] for row in _conn.execute("PRAGMA table_info(users)")}
         if "email_verified" not in columns:
             _conn.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0")
+        if "google_sub" not in columns:
+            _conn.execute("ALTER TABLE users ADD COLUMN google_sub TEXT")
+        _conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_by_google ON users(google_sub) "
+                      "WHERE google_sub IS NOT NULL")
     return _conn
 
 
@@ -169,6 +187,42 @@ def user_by_email(email: str) -> sqlite3.Row | None:
     return _one("SELECT * FROM users WHERE email = ?", (email,))
 
 
+def has_password(user: sqlite3.Row) -> bool:
+    return user["password_hash"] != NO_PASSWORD
+
+
+# ---------- Google sign-in ----------
+
+def user_by_google(sub: str) -> sqlite3.Row | None:
+    return _one("SELECT * FROM users WHERE google_sub = ?", (sub,))
+
+
+def google_user(sub: str, email: str) -> tuple[int, bool] | None:
+    """The account for a Google identity whose email Google has verified: (user id, newly created).
+
+    Signs in the account already linked to this Google ID, or links the account with this email,
+    or creates one. None if the email belongs to an account linked to a *different* Google ID.
+    An unconfirmed account holding the email is replaced: whoever created it never proved they own
+    the inbox, and Google just proved this person does (so a pre-registered password can't linger).
+    """
+    with _lock:
+        linked = user_by_google(sub)
+        if linked is not None:
+            return linked["id"], False
+        existing = user_by_email(email)
+        if existing is not None and existing["email_verified"]:
+            if existing["google_sub"] is not None:
+                return None
+            _exec("UPDATE users SET google_sub = ? WHERE id = ?", (sub, existing["id"]))
+            return existing["id"], False
+        if existing is not None:
+            delete_user(existing["id"])
+        user_id = _exec("""INSERT INTO users (email, password_hash, settings, created_at, email_verified, google_sub)
+                           VALUES (?, ?, ?, ?, 1, ?)""",
+                        (email, NO_PASSWORD, json.dumps(DEFAULT_SETTINGS), int(time.time()), sub))
+        return user_id, True
+
+
 def set_password(user_id: int, password: str) -> None:
     _exec("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(password), user_id))
 
@@ -188,8 +242,8 @@ def get_user(user_id: int) -> sqlite3.Row | None:
 
 def authenticate(email: str, password: str) -> sqlite3.Row | None:
     user = _one("SELECT * FROM users WHERE email = ?", (email,))
-    if user is None:
-        verify_password(password, _DUMMY_HASH)
+    if user is None or not has_password(user):
+        verify_password(password, _DUMMY_HASH)   # same time taken whether or not the account exists
         return None
     return user if verify_password(password, user["password_hash"]) else None
 
@@ -262,3 +316,27 @@ def history(user_id: int) -> list[dict]:
 
 def clear_history(user_id: int) -> None:
     _exec("DELETE FROM scans WHERE user_id = ?", (user_id,))
+
+
+# ---------- site reports ----------
+
+def add_report(target: str, host: str, category: str, details: str, user_id: int | None) -> None:
+    now = int(time.time())
+    _exec("DELETE FROM reports WHERE created_at < ?", (now - REPORT_SECONDS,))
+    _exec("INSERT INTO reports (target, host, category, details, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+          (target[:2048], host[:320], category, details[:1000], user_id, now))
+
+
+def reports(include_reviewed: bool = False, limit: int = 100) -> list[dict]:
+    """Newest first, with how many reports the same site has had in total."""
+    rows = _all(f"""SELECT r.id, r.target, r.host, r.category, r.details, r.created_at, r.reviewed,
+                           (SELECT COUNT(*) FROM reports o WHERE o.host = r.host) AS reports_for_site
+                    FROM reports r {'' if include_reviewed else 'WHERE r.reviewed = 0'}
+                    ORDER BY r.created_at DESC, r.id DESC LIMIT ?""", (limit,))
+    return [dict(row) for row in rows]
+
+
+def mark_reports_reviewed(host: str) -> int:
+    """Mark every report for a site reviewed; returns how many changed."""
+    with _lock:
+        return conn().execute("UPDATE reports SET reviewed = 1 WHERE host = ? AND reviewed = 0", (host,)).rowcount

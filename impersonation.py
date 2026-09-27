@@ -96,6 +96,13 @@ def official_brand(registrable: str) -> str | None:
     return None
 
 
+def same_owner(host_a: str, host_b: str) -> bool:
+    """True if two hosts belong to the same site: the same registrable domain, or two domains of one
+    brand (a payment link on rzp.io that opens on razorpay.com)."""
+    a, b = registrable_domain(host_a), registrable_domain(host_b)
+    return a == b or (official_brand(a) is not None and official_brand(a) == official_brand(b))
+
+
 def brand_lookalike(label: str, subdomain: str) -> tuple[int, str, str] | None:
     """Return (points, reason, brand name) for the closest brand the name imitates, if any."""
     shown = decode_label(label)

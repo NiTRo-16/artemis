@@ -24,6 +24,15 @@ BRANDS: list[tuple[str, list[str], list[str]]] = [
     ("Axis Bank", ["axisbank"], ["axisbank.com", "axis.bank.in"]),
     ("Paytm", ["paytm"], ["paytm.com", "paytm.in"]),
     ("PhonePe", ["phonepe"], ["phonepe.com"]),
+    ("NPCI / BHIM UPI", ["npci", "bhimupi"], ["npci.org.in", "bhimupi.org.in"]),
+    ("Razorpay", ["razorpay"], ["razorpay.com", "rzp.io", "razorpay.me"]),
+    ("PayU", ["payu", "payumoney"], ["payu.in", "payu.com", "payumoney.com"]),
+    ("Cashfree", ["cashfree"], ["cashfree.com"]),
+    ("Instamojo", ["instamojo"], ["instamojo.com"]),
+    ("CCAvenue", ["ccavenue"], ["ccavenue.com"]),
+    ("BillDesk", ["billdesk"], ["billdesk.com"]),
+    # No name keywords: "stripe" is part of too many ordinary names (pinstripe, ...) to flag lookalikes.
+    ("Stripe", [], ["stripe.com"]),
     ("Income Tax India", ["incometax", "incometaxindia"], ["incometax.gov.in", "incometaxindia.gov.in"]),
     ("IRS", ["irs"], ["irs.gov"]),
     # crypto

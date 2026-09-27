@@ -21,7 +21,8 @@ import httpx
 
 from clone import MAX_ICON_BYTES, check_clone, merge, parse_html
 from netsafety import is_public_ip
-from impersonation import assess, check_impersonation, lookup_records, registrable_domain
+from impersonation import assess, check_impersonation, lookup_records, same_owner
+from payments import check_payment_page
 from render import render_page
 
 USER_AGENT = "ArtemisScanner/0.2 (passive checks)"
@@ -436,7 +437,7 @@ def risk_label(risk: int) -> str:
 
 def visit_decision(host: str, https_page: Page | None, http_page: Page | None, tls: Category | None,
                    impersonation: dict, risk: int | None, path: str | None = None,
-                   leads_to: str | None = None) -> dict:
+                   leads_to: str | None = None, payment: dict | None = None) -> dict:
     """Decide whether the site is safe to link to directly; `allowed` is True only when every criterion passes."""
     final_host = (urlsplit(https_page.url).hostname or "") if https_page else ""
     online = https_page is not None or http_page is not None
@@ -445,7 +446,7 @@ def visit_decision(host: str, https_page: Page | None, http_page: Page | None, t
          "Homepage doesn't load over HTTPS" if online else "Site is offline"),
         (tls is not None and not any(f.severity == "critical" for f in tls.findings),
          "Certificate is valid and trusted", "Certificate isn't valid or trusted"),
-        (https_page is not None and registrable_domain(final_host) == registrable_domain(host),
+        (https_page is not None and same_owner(final_host, host),
          "Homepage stays on the same site", "Homepage redirects to a different site"),
         (impersonation["level"] in ("official", "clear"), "No signs of impersonating a brand",
          f"Impersonation check: {impersonation['verdict']}"),
@@ -454,6 +455,8 @@ def visit_decision(host: str, https_page: Page | None, http_page: Page | None, t
         (risk is not None and risk < HIGH_RISK_FROM, "Risk level is Low or Medium", "Risk level is High"),
         (leads_to is None, "Link stays on the scanned site",
          f"Link leads to a different site ({leads_to}) that wasn't checked"),
+        (payment is None or payment["level"] != "danger", "No signs of a payment scam",
+         f"Payment check: {payment['verdict'] if payment else ''}"),
     ]
     if not online:
         criteria = [c for c in criteria if c[1] in ("Homepage loads over HTTPS", "No signs of impersonating a brand",
@@ -487,6 +490,7 @@ async def scan(raw_domain: str) -> dict:
             "categories": [],
             "findings": [],
             "impersonation": impersonation,
+            "payment": None,
             "visit": visit_decision(host, None, None, None, impersonation, None),
         }
     ip = next((a for a in addrs if ":" not in a), addrs[0])
@@ -514,8 +518,9 @@ async def scan(raw_domain: str) -> dict:
 
             static = parse_html(loaded.body, loaded.url) if loaded is not None and loaded.body else None
             landed = next((urlsplit(p.url).hostname or "" for p in (loaded, rendered) if p is not None
-                           and registrable_domain(urlsplit(p.url).hostname or "") != registrable_domain(host)), None)
+                           and not same_owner(urlsplit(p.url).hostname or "", host)), None)
             features = merge(static, rendered)
+            payment = None if landed else check_payment_page(host, features, records, link)
             if landed:
                 # Link shorteners and redirects (including script redirects): the page belongs to another
                 # site, so don't judge this one by it.
@@ -565,6 +570,7 @@ async def scan(raw_domain: str) -> dict:
         ],
         "findings": [{**asdict(f), "category": name} for f, name in findings],
         "impersonation": impersonation,
+        "payment": payment,
         "visit": visit_decision(host, https_page, http_page, tls, impersonation, risk, path,
-                                (page_facts or {}).get("redirected_to")),
+                                (page_facts or {}).get("redirected_to"), payment),
     }

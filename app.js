@@ -120,44 +120,74 @@ function drawBlips(findings) {
   });
 }
 
-const RESULT_SECTIONS = ["impersonation", "categories", "findings", "nav-links"];
+const PAYMENT_KIND = { upi: "UPI payment", provider: "Payment page", page: "Payment form on this page" };
+
+function renderPayment(report) {
+  const pay = report.payment;
+  const box = $("pay");
+  box.className = `imp ${pay.level}`;
+  const left = el("div");
+  left.append(el("div", "imp-verdict", pay.verdict), el("div", "imp-kind", PAYMENT_KIND[pay.kind] || "Payment"),
+              el("p", "imp-summary", pay.summary));
+  const signals = el("ul", "imp-signals");
+  pay.signals.forEach((s) => signals.append(el("li", s.tone, s.text)));
+  left.append(signals);
+  if (pay.level !== "clear") left.append(reportButton(report, report.kind === "upi" ? "Report this UPI ID" : "Report this site"));
+  const facts = el("dl", "imp-facts");
+  pay.facts.forEach(([label, value]) => {
+    const cell = el("div");
+    cell.append(el("dt", "", label), el("dd", "", value));
+    facts.append(cell);
+  });
+  box.replaceChildren(left, facts);
+}
+
+const SITE_SECTIONS = ["impersonation", "categories", "findings", "nav-impersonation", "nav-categories", "nav-findings"];
 
 function render(report) {
   current = report;
-  RESULT_SECTIONS.forEach((id) => { $(id).hidden = false; });
+  const upi = report.kind === "upi";   // a UPI link: only the payment check applies
+  SITE_SECTIONS.forEach((id) => { $(id).hidden = upi; });
+  $("payment").hidden = $("nav-payment").hidden = !report.payment;
+  $("nav-links").hidden = false;
   const level = $("risk-level");
-  if (report.risk) {
-    const tone = report.risk.label.toLowerCase();
+  const tone = report.risk && report.risk.label.toLowerCase();
+  if (report.risk && report.risk.score != null) {
     $("risk-num").textContent = report.risk.score;
     $("risk-num").style.color = { low: "var(--teal)", medium: "var(--amber)", high: "var(--red)" }[tone];
     $("risk-num").hidden = false;
     $("risk-lbl").textContent = "Risk score";
-    level.textContent = report.risk.label;
-    level.className = `level ${tone}`;
-    level.hidden = false;
   } else {
     $("risk-num").hidden = true;
-    $("risk-lbl").textContent = "Site offline";
-    level.hidden = true;
+    $("risk-lbl").textContent = upi ? "Payment risk" : "Site offline";
   }
+  if (report.risk) {
+    level.textContent = report.risk.label;
+    level.className = `level ${tone}`;
+  }
+  level.hidden = !report.risk;
 
-  $("cat-idx").textContent = report.resolves === false ? `${report.domain} is offline`
-    : `${report.domain} · ${(report.duration_ms / 1000).toFixed(1)}s`;
-  $("cat-grid").replaceChildren(...report.categories.map(catCard));
-
-  const n = report.findings.length;
-  $("find-idx").textContent = n || "";
-  $("findings-list").replaceChildren(
-    ...(n ? report.findings.map(findingRow) : [el("div", "finding empty", "No issues found.")])
-  );
-  drawBlips(report.findings);
-  renderImpersonation(report.impersonation);
+  if (report.payment) renderPayment(report);
+  if (upi) {
+    $("blips").replaceChildren();
+  } else {
+    $("cat-idx").textContent = report.resolves === false ? `${report.domain} is offline`
+      : `${report.domain} · ${(report.duration_ms / 1000).toFixed(1)}s`;
+    $("cat-grid").replaceChildren(...report.categories.map(catCard));
+    const n = report.findings.length;
+    $("find-idx").textContent = n || "";
+    $("findings-list").replaceChildren(
+      ...(n ? report.findings.map(findingRow) : [el("div", "finding empty", "No issues found.")])
+    );
+    drawBlips(report.findings);
+    renderImpersonation(report.impersonation);
+  }
   renderVisit(report);
 }
 
 // Before the first successful scan: no score, no results.
 function renderEmpty() {
-  RESULT_SECTIONS.forEach((id) => { $(id).hidden = true; });
+  [...SITE_SECTIONS, "payment", "nav-links"].forEach((id) => { $(id).hidden = true; });
   $("risk-num").hidden = true;
   $("risk-lbl").textContent = "No scan yet";
   $("risk-level").hidden = true;
@@ -196,7 +226,21 @@ function renderVisit(report) {
       btn.addEventListener("click", () => openRiskDialog(report, url));
       box.append(btn);
     }
+    if (reportable(report)) box.append(reportButton(report, "Report this site"));
   }
+}
+
+// Sites showing signs of phishing, malware or a payment scam can be reported.
+function reportable(report) {
+  return ["suspicious", "likely", "reported"].includes(report.impersonation && report.impersonation.level)
+    || (report.payment && report.payment.level !== "clear");
+}
+
+function reportButton(report, label) {
+  const btn = el("button", "btn outline report-btn", label);
+  btn.type = "button";
+  btn.addEventListener("click", () => openReport(report));
+  return btn;
 }
 
 // Everything that made the site high risk, strongest first, without repeats.
@@ -211,11 +255,60 @@ function riskFactors(report) {
   report.visit.criteria
     .filter((c) => !c.passed && !(certFinding && c.text === "Certificate is valid and trusted"))
     .forEach((c) => add(c.problem, "red"));
+  const payment = report.payment ? report.payment.signals : [];
+  payment.filter((s) => s.tone === "red").forEach((s) => add(s.text, "red"));
   report.impersonation.signals.filter((s) => s.tone === "red").forEach((s) => add(s.text, "red"));
   report.findings.filter((f) => f.severity === "critical" || f.severity === "high").forEach((f) => add(f.title, "red"));
+  payment.filter((s) => s.tone === "amber").forEach((s) => add(s.text, "amber"));
   report.impersonation.signals.filter((s) => s.tone === "amber").forEach((s) => add(s.text, "amber"));
   return items;
 }
+
+// ---------- reporting a site ----------
+
+let reporting = null;   // { target, upi } being reported
+
+function googleReportLink() {
+  const category = (document.querySelector('input[name="report-category"]:checked') || {}).value;
+  const kind = category === "malware" ? "report_badware" : "report_phish";
+  $("report-google-link").href = `https://safebrowsing.google.com/safebrowsing/${kind}/?url=${encodeURIComponent(reporting.target)}`;
+}
+
+function openReport(report) {
+  const upi = report.kind === "upi";
+  reporting = { target: upi ? report.domain : (report.visit && report.visit.url) || report.domain, upi };
+  $("report-title").textContent = upi ? "Report this UPI ID" : "Report this site";
+  $("report-target").textContent = reporting.target;
+  $("report-form").reset();
+  const preset = upi || (report.payment && report.payment.level !== "clear") ? "payment" : "phishing";
+  document.querySelector(`input[name="report-category"][value="${preset}"]`).checked = true;
+  $("report-error").hidden = true;
+  $("report-form").hidden = false;
+  $("report-sent").hidden = true;
+  $("report-google").hidden = upi;          // Safe Browsing takes web addresses, not UPI IDs
+  $("report-upi-app").hidden = !upi;
+  if (!upi) googleReportLink();
+  $("report-dialog").showModal();
+}
+
+document.querySelectorAll('input[name="report-category"]').forEach((radio) =>
+  radio.addEventListener("change", () => { if (reporting && !reporting.upi) googleReportLink(); }));
+
+$("report-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const category = document.querySelector('input[name="report-category"]:checked').value;
+  $("report-submit").disabled = true;
+  try {
+    await api("/api/report", { method: "POST", body: { target: reporting.target, category, details: $("report-details").value } });
+    $("report-form").hidden = true;
+    $("report-sent").hidden = false;
+  } catch (err) {
+    $("report-error").textContent = err.message;
+    $("report-error").hidden = false;
+  } finally {
+    $("report-submit").disabled = false;
+  }
+});
 
 function openRiskDialog(report, url) {
   $("risk-target-url").textContent = url;
@@ -242,8 +335,93 @@ function showError(message) {
   $("scan-error").hidden = !message;
 }
 
+// ---------- recent searches (kept in this browser only) ----------
+
+const RECENT_KEY = "artemis.recent";
+const RECENT_MAX = 5;
+let recentActive = -1;   // highlighted suggestion, for the arrow keys
+
+function loadRecent() {
+  try {
+    const list = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+    return Array.isArray(list) ? list.filter((t) => typeof t === "string").slice(0, RECENT_MAX) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveRecent(list) {
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) { /* storage unavailable */ }
+}
+
+function rememberSearch(target) {
+  saveRecent([target, ...loadRecent().filter((t) => t.toLowerCase() !== target.toLowerCase())].slice(0, RECENT_MAX));
+}
+
+function hideRecent() {
+  $("recent").hidden = true;
+  $("domain").setAttribute("aria-expanded", "false");
+  $("domain").removeAttribute("aria-activedescendant");
+  recentActive = -1;
+}
+
+// Shows recent searches that match what's typed (all of them when the box is empty).
+function showRecent() {
+  const typed = $("domain").value.trim().toLowerCase();
+  const items = loadRecent().filter((t) => !typed || (t.toLowerCase().includes(typed) && t.toLowerCase() !== typed));
+  if (!items.length || $("scan-btn").disabled) { hideRecent(); return; }
+  recentActive = -1;
+  $("domain").removeAttribute("aria-activedescendant");
+  $("recent-list").replaceChildren(...items.map((target, i) => {
+    const item = el("li", "", target);
+    item.id = `recent-${i}`;
+    item.setAttribute("role", "option");
+    item.setAttribute("aria-selected", "false");
+    item.addEventListener("mousedown", (e) => e.preventDefault());   // keep focus in the search box
+    item.addEventListener("click", () => pickRecent(target));
+    return item;
+  }));
+  $("recent").hidden = false;
+  $("domain").setAttribute("aria-expanded", "true");
+}
+
+function pickRecent(target) {
+  $("domain").value = target;
+  hideRecent();
+  $("scan-form").requestSubmit();
+}
+
+function moveRecent(step) {
+  const items = [...$("recent-list").children];
+  if (!items.length) return;
+  recentActive = recentActive < 0 ? (step > 0 ? 0 : items.length - 1) : (recentActive + step + items.length) % items.length;
+  items.forEach((item, i) => item.setAttribute("aria-selected", String(i === recentActive)));
+  $("domain").setAttribute("aria-activedescendant", items[recentActive].id);
+}
+
+$("domain").addEventListener("focus", showRecent);
+$("domain").addEventListener("click", () => { if ($("recent").hidden) showRecent(); });
+$("domain").addEventListener("input", showRecent);
+$("domain").addEventListener("blur", hideRecent);
+$("domain").addEventListener("keydown", (event) => {
+  const open = !$("recent").hidden;
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    if (!open) showRecent();
+    moveRecent(event.key === "ArrowDown" ? 1 : -1);
+  } else if (event.key === "Enter" && open && recentActive >= 0) {
+    event.preventDefault();
+    pickRecent($("recent-list").children[recentActive].textContent);
+  } else if (event.key === "Escape" && open) {
+    hideRecent();
+  }
+});
+$("recent-clear").addEventListener("mousedown", (e) => e.preventDefault());
+$("recent-clear").addEventListener("click", () => { saveRecent([]); hideRecent(); });
+
 $("scan-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  hideRecent();
   const domain = $("domain").value.trim();
   if (!domain) { $("domain").focus(); return; }
   showError("");
@@ -258,6 +436,7 @@ $("scan-form").addEventListener("submit", async (event) => {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "The scan failed.");
     report = data;
+    rememberSearch(domain);
   } catch (err) {
     showError(err instanceof TypeError ? "Couldn't reach the scanner. Is the server running?" : err.message);
   }
@@ -332,12 +511,18 @@ function setAccount(next) {
   $("history-btn").hidden = $("logout-btn").hidden = $("account-email").hidden = !signedIn;
   $("account-email").textContent = signedIn ? account.email : "";
   $("account-section").hidden = !signedIn;
+  // Accounts made with Google may have no password; they confirm deletion by typing their email.
+  const password = !signedIn || account.has_password !== false;
+  $("delete-label").textContent = password ? "Confirm with your password" : "Type your email address to confirm";
+  $("delete-password").type = password ? "password" : "email";
+  $("delete-password").autocomplete = password ? "current-password" : "off";
   $("settings-scope").textContent = signedIn ? `Saved to your account (${account.email}) and this browser.`
     : "Saved in this browser. Sign in to keep them on every device.";
 }
 
 let authMode = "signup";
 let linkToken = "";   // from an emailed /verify or /reset link
+let googleSignin = false;   // the server has Google sign-in set up
 
 const OPTIONAL_NOTE = "An account is optional. It keeps your scan history, saves your settings across devices, and raises your limit from 10 to 30 scans a minute.";
 const AUTH_MODES = {
@@ -369,7 +554,11 @@ function openAuth(mode) {
   }
   $("auth-submit").textContent = m.submit;
   $("forgot-btn").hidden = mode !== "login";
-  $("auth-consent").hidden = mode !== "signup";
+  const google = googleSignin && (mode === "signup" || mode === "login");
+  $("google-block").hidden = !google;
+  // "Continue with Google" can create an account from either tab, so the terms line shows on both.
+  $("auth-consent").hidden = !(mode === "signup" || google);
+  $("auth-consent-lead").textContent = google ? "By creating an account or continuing with Google" : "By creating an account";
   $("auth-error").hidden = true;
   $("auth-form").hidden = false;
   $("auth-sent").hidden = true;
@@ -503,12 +692,23 @@ if (location.pathname === "/verify" || location.pathname === "/reset") {
 }
 
 // /?scan=example.com starts a scan straight away (used by the browser extension's "Full report" link).
-const requested = new URLSearchParams(location.search).get("scan");
+// /?signin=ok|new|failed is where Google sign-in returns; the address bar is cleaned afterwards.
+const params = new URLSearchParams(location.search);
+const requested = params.get("scan");
+const signin = params.get("signin");
+if (signin) history.replaceState(null, "", "/");
 if (requested) {
   $("domain").value = requested.slice(0, 2048);
   $("scan-form").requestSubmit();
 }
 api("/api/me").then((data) => {
+  googleSignin = !!data.google_signin;
   setAccount(data.account);
-  if (data.account) applySettings(data.account.settings);
+  if (data.account && signin === "new") saveSettings(settings);   // a new account keeps choices made before it
+  else if (data.account) applySettings(data.account.settings);
+  if (signin === "failed" && !data.account) {
+    openAuth("login");
+    $("auth-error").textContent = "Google sign-in didn't work. Try again, or log in with your email and password.";
+    $("auth-error").hidden = false;
+  }
 }).catch(() => setAccount(null));

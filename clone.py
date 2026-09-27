@@ -27,6 +27,15 @@ BRAND_ICON_TTL = 24 * 3600
 IDENTITY_META = ("og:site_name", "og:title", "application-name", "twitter:title")
 CARD_AUTOCOMPLETE = {"cc-number", "cc-csc", "cc-exp", "cc-exp-month", "cc-exp-year"}
 CARD_FIELD = re.compile(r"card.?(num|no)|cc.?num|cvv|cvc|\bcsc\b|expir", re.IGNORECASE)
+# UPI PIN, MPIN or ATM PIN: no genuine website asks for these. Kept in step with PIN in render.py.
+PIN_FIELD = re.compile(r"upi.?pin|\bm.?pin\b|atm.?pin", re.IGNORECASE)
+OTP_FIELD = re.compile(r"\botp\b|one.?time.?(pass|code)", re.IGNORECASE)
+
+
+def new_form(action: str | None, loose: bool = False) -> dict:
+    """A form as the checks see it. `frame` is the host of the frame it's in (None: the page itself)."""
+    return {"action": action, "password": False, "card": False, "pin": False, "otp": False,
+            "loose": loose, "frame": None}
 
 _brand_icons: dict[str, tuple[float, set[str]]] = {}   # brand name -> (fetched at, favicon sha256 hashes)
 
@@ -46,7 +55,7 @@ class PageParser(HTMLParser):
         self._form: dict | None = None
         self._in_title = False
         # Fields outside any <form> are usually submitted by script; we can't see where they go.
-        self.loose = {"action": None, "password": False, "card": False, "loose": True}
+        self.loose = new_form(None, loose=True)
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         a = {key.lower(): (value or "") for key, value in attrs}
@@ -65,15 +74,20 @@ class PageParser(HTMLParser):
         elif tag in ("img", "script") and a.get("src"):
             self.resources.append(a["src"])
         elif tag == "form":
-            self._form = {"action": a.get("action"), "password": False, "card": False, "loose": False}
+            self._form = new_form(a.get("action"))
             self.forms.append(self._form)
         elif tag == "input":
             target = self._form if self._form is not None else self.loose
             if a.get("type", "").lower() == "password":
                 target["password"] = True
-            hints = " ".join(a.get(k, "") for k in ("name", "id", "placeholder"))
-            if a.get("autocomplete", "").lower() in CARD_AUTOCOMPLETE or CARD_FIELD.search(hints):
+            hints = " ".join(a.get(k, "") for k in ("name", "id", "placeholder", "aria-label"))
+            autocomplete = a.get("autocomplete", "").lower()
+            if autocomplete in CARD_AUTOCOMPLETE or CARD_FIELD.search(hints):
                 target["card"] = True
+            if PIN_FIELD.search(hints):
+                target["pin"] = True
+            if autocomplete == "one-time-code" or OTP_FIELD.search(hints):
+                target["otp"] = True
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "title":
@@ -149,7 +163,7 @@ class PageFeatures:
     meta: dict[str, str] = field(default_factory=dict)
     icons: list[str] = field(default_factory=list)
     resources: list[str] = field(default_factory=list)
-    forms: list[dict] = field(default_factory=list)   # {"action": str | None, "password": bool, "card": bool}
+    forms: list[dict] = field(default_factory=list)   # see new_form()
     rendered: bool = False
 
 
@@ -160,7 +174,8 @@ def parse_html(html: str, page_url: str) -> PageFeatures:
         parser.close()
     except Exception:   # malformed markup shouldn't break the scan; use whatever was parsed
         pass
-    loose = [parser.loose] if parser.loose["password"] or parser.loose["card"] else []
+    fields = ("password", "card", "pin", "otp")
+    loose = [parser.loose] if any(parser.loose[f] for f in fields) else []
     return PageFeatures(page_url, parser.title.strip(), parser.meta, parser.icons, parser.resources,
                         parser.forms + loose)
 

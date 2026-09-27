@@ -1,5 +1,6 @@
 """Artemis web server: serves the UI, runs passive scans, and handles optional accounts."""
 import asyncio
+import hmac
 import ipaddress
 import json
 import logging
@@ -13,14 +14,16 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import db
+import google_auth
 import mail
 import render
 from impersonation import check_impersonation
+from payments import UPI_ID, is_upi, parse_upi, upi_report
 from scanner import ScanError, normalize_domain, scan
 
 ROOT = Path(__file__).parent
@@ -29,10 +32,12 @@ CHECK_TIMEOUT = 20.0
 CHECK_CACHE_SECONDS = 6 * 3600
 CHECK_CACHE_SIZE = 10_000
 SESSION_COOKIE = "artemis_session"
+OAUTH_COOKIE = "artemis_oauth"      # ties a Google sign-in to the browser that started it
 MAX_BODY_BYTES = 64 * 1024        # largest accepted request body; every API body is tiny
 MAX_CONCURRENT_SCANS = 8          # full scans at once, across all visitors
 MAX_CONCURRENT_CHECKS = 16        # extension checks at once
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
+CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")   # all but tab and newline
 
 # Sent on every response. Scripts come only from this site (the page's code is in /app.js);
 # inline style attributes are allowed because the markup uses a few.
@@ -59,7 +64,7 @@ async def lifespan(app: FastAPI):
     db.init()   # create the database and tables before the first request
     # Check the sandboxed browser once at startup so a broken deployment shows up in logs and /healthz
     # instead of silently skipping the script-built form check on every scan.
-    app.state.mail_error = mail.config_problem()
+    app.state.mail_error = mail.config_problem() or google_auth.config_problem()
     if app.state.mail_error:
         log.error("Account email is not configured: %s", app.state.mail_error)
     elif not mail.SMTP_HOST:
@@ -186,6 +191,8 @@ failed_login_limiter = RateLimiter(3600.0)   # 10 wrong passwords an hour per ac
 check_limiter = RateLimiter(60.0)       # extension checks: 60 a minute per network
 reset_limiter = RateLimiter(3600.0)     # 5 password-reset requests an hour per network
 email_limiter = RateLimiter(3600.0)     # 3 account emails an hour to any one address, so nobody gets flooded
+report_limiter = RateLimiter(3600.0)    # 10 site reports an hour per network
+repeat_report_limiter = RateLimiter(86400.0)   # one report a day per site per network; repeats aren't counted
 scan_slots = asyncio.Semaphore(MAX_CONCURRENT_SCANS)
 check_slots = asyncio.Semaphore(MAX_CONCURRENT_CHECKS)
 
@@ -234,7 +241,8 @@ def start_session(request: Request, response: Response, user_id: int) -> None:
 
 
 def account_json(user) -> dict:
-    return {"email": user["email"], "settings": db.get_settings(user)}
+    return {"email": user["email"], "settings": db.get_settings(user), "has_password": db.has_password(user),
+            "google": user["google_sub"] is not None}
 
 
 class Credentials(BaseModel):
@@ -269,7 +277,7 @@ CHECK_EMAIL = {"status": "check_email"}
 
 
 class Confirm(BaseModel):
-    password: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=254)   # an email address for accounts without a password
 
 
 @app.post("/api/signup")
@@ -388,7 +396,55 @@ async def logout(request: Request, response: Response) -> dict:
 @app.get("/api/me")
 async def me(request: Request) -> dict:
     user = current_user(request)
-    return {"account": account_json(user) if user else None}
+    return {"account": account_json(user) if user else None, "google_signin": google_auth.ENABLED}
+
+
+# ---------- Google sign-in ----------
+
+@app.get("/api/auth/google")
+async def google_start(request: Request) -> RedirectResponse:
+    if not google_auth.ENABLED:
+        raise HTTPException(404, "Google sign-in isn't set up on this server.")
+    auth_limiter.check(client_key(request), 10, "Too many attempts. Try again in a few minutes.")
+    state, url = google_auth.start()
+    response = RedirectResponse(url, status_code=303)
+    response.set_cookie(OAUTH_COOKIE, state, max_age=google_auth.STATE_SECONDS, httponly=True, samesite="lax",
+                        secure=request.url.scheme == "https", path="/api/auth/google")
+    return response
+
+
+@app.get("/api/auth/google/callback")
+async def google_callback(request: Request, state: str = "", code: str = "", error: str = "") -> RedirectResponse:
+    """Where Google sends the browser back. Always redirects to the home page; `?signin=` says how it went."""
+    if not google_auth.ENABLED:
+        raise HTTPException(404, "Google sign-in isn't set up on this server.")
+
+    def back(outcome: str | None) -> RedirectResponse:
+        response = RedirectResponse(f"/?signin={outcome}" if outcome else "/", status_code=303)
+        response.delete_cookie(OAUTH_COOKIE, path="/api/auth/google")
+        return response
+
+    if error:
+        return back(None)   # the person cancelled on Google's screen
+    auth_limiter.check(client_key(request), 10, "Too many attempts. Try again in a few minutes.")
+    cookie = request.cookies.get(OAUTH_COOKIE, "")
+    # The state must match the cookie set when this browser started, so nobody can finish a sign-in
+    # they started for someone else (which would sign the victim into the attacker's account).
+    if not state or not code or len(code) > 2048 or not hmac.compare_digest(state.encode(), cookie.encode()):
+        return back("failed")
+    try:
+        google_id, email = await google_auth.finish(state, code)
+    except google_auth.GoogleError as exc:
+        log.warning("Google sign-in failed: %s", exc)
+        return back("failed")
+    result = db.google_user(google_id, email)
+    if result is None:
+        log.warning("Google sign-in refused: the email's account is linked to a different Google account")
+        return back("failed")
+    user_id, created = result
+    response = back("new" if created else "ok")
+    start_session(request, response, user_id)
+    return response
 
 
 @app.put("/api/settings")
@@ -416,8 +472,11 @@ async def delete_account(body: Confirm, request: Request, response: Response) ->
     require_same_origin(request)
     user = require_user(request)
     auth_limiter.check(client_key(request), 10, "Too many attempts. Try again in a few minutes.")
-    if not await asyncio.to_thread(db.verify_password, body.password, user["password_hash"]):
-        raise HTTPException(401, "Password is incorrect.")
+    if db.has_password(user):
+        if not await asyncio.to_thread(db.verify_password, body.password, user["password_hash"]):
+            raise HTTPException(401, "Password is incorrect.")
+    elif body.password.strip().lower() != user["email"].lower():   # Google-only account: type the email instead
+        raise HTTPException(401, "That isn't your account's email address.")
     db.delete_user(user["id"])
     response.delete_cookie(SESSION_COOKIE, path="/")
     return {"ok": True}
@@ -438,20 +497,60 @@ async def run_scan(body: ScanRequest, request: Request) -> dict:
         scan_limiter.check(f"net:{client_key(request)}", 60, "Too many scans from your network. Try again in a minute.")
     else:
         scan_limiter.check(client_key(request), 10, "Too many scans. Try again in a minute, or sign in for a higher limit.")
-    if scan_slots.locked():
-        raise HTTPException(503, "Artemis is busy right now. Try again in a moment.")
-    try:
-        async with scan_slots:
-            report = await asyncio.wait_for(scan(body.domain), SCAN_TIMEOUT)
-    except ScanError as exc:
-        raise HTTPException(400, str(exc))
-    except asyncio.TimeoutError:
-        raise HTTPException(504, "The scan timed out.")
+    if is_upi(body.domain):
+        try:
+            report = upi_report(body.domain)   # read from the link itself; nothing is fetched
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+    else:
+        if scan_slots.locked():
+            raise HTTPException(503, "Artemis is busy right now. Try again in a moment.")
+        try:
+            async with scan_slots:
+                report = await asyncio.wait_for(scan(body.domain), SCAN_TIMEOUT)
+        except ScanError as exc:
+            raise HTTPException(400, str(exc))
+        except asyncio.TimeoutError:
+            raise HTTPException(504, "The scan timed out.")
     if user:
         risk = report["risk"]
-        db.add_scan(user["id"], body.domain.strip(), risk and risk["score"], risk and risk["label"],
-                    report["impersonation"]["verdict"])
+        verdict = (report.get("impersonation") or report["payment"])["verdict"]
+        db.add_scan(user["id"], body.domain.strip(), risk and risk["score"], risk and risk["label"], verdict)
     return report
+
+
+# ---------- site reports ----------
+
+class ReportRequest(BaseModel):
+    target: str = Field(min_length=1, max_length=2048)   # the scanned domain, link or UPI ID
+    category: Literal["phishing", "malware", "payment", "other"]
+    details: str = Field(default="", max_length=1000)
+
+
+@app.post("/api/report")
+async def report_site(body: ReportRequest, request: Request) -> dict:
+    """Save a report for the team to review. Reports never change a site's result by themselves."""
+    require_same_origin(request)
+    target = CONTROL_CHARS.sub("", body.target).strip()
+    if is_upi(target):
+        upi_id = parse_upi(target)[1].get("pa", "")
+        if not UPI_ID.match(upi_id):
+            raise HTTPException(400, "This UPI link has no valid UPI ID (the pa= part).")
+        site = upi_id.lower()
+    else:
+        try:
+            site = normalize_domain(target)
+        except ScanError as exc:
+            raise HTTPException(400, str(exc))
+    key = client_key(request)
+    report_limiter.check(key, 10, "Too many reports from your network. Try again later.")
+    if repeat_report_limiter.blocked(f"{key}|{site}", 1):
+        return {"ok": True}   # already reported today from here: thank them, but count it once
+    repeat_report_limiter.record(f"{key}|{site}")
+    user = current_user(request)
+    db.add_report(target, site, body.category, CONTROL_CHARS.sub("", body.details).strip(),
+                  user["id"] if user else None)
+    return {"ok": True}
 
 
 # ---------- browser extension ----------

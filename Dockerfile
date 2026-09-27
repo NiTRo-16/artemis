@@ -12,7 +12,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY main.py db.py mail.py netsafety.py scanner.py impersonation.py clone.py render.py brands.py ./
+COPY main.py db.py mail.py google_auth.py netsafety.py scanner.py impersonation.py clone.py render.py brands.py \
+     payments.py reports.py ./
 COPY index.html app.js theme.js privacy.html terms.html legal.css favicon.svg ./
 COPY fonts ./fonts
 
