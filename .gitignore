@@ -11,3 +11,6 @@ data/
 
 # Local tool settings
 .claude/
+
+# Evaluation data: live phishing links and scan results
+evaluation/data/
