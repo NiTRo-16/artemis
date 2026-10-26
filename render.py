@@ -203,7 +203,10 @@ async def _render(url: str) -> PageFeatures | None:
                     response = await context.request.get(current, max_redirects=0, timeout=FETCH_TIMEOUT_MS)
                 await route.abort("blockedbyclient")
             except PlaywrightError:
-                await route.abort("failed")
+                try:
+                    await route.abort("failed")
+                except PlaywrightError:
+                    pass   # already answered, or the page closed while this request was in flight
 
         async def never_connect(ws) -> None:   # a handler that doesn't call connect_to_server keeps it offline
             return None

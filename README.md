@@ -89,7 +89,16 @@ impersonating a brand. It sends only the domain, and only after the user turns w
 
 ## Run it locally
 
-Requires Python 3.12 or later.
+Requires Python 3.12 or later. The quickest way is the start script, which sets everything up on the
+first run and starts Artemis every time after:
+
+- Windows: double-click `run-local.bat`
+- macOS or Linux: run `sh run-local.sh` in a terminal
+
+On Linux, if the server log says the headless browser self-test failed, also run
+`sudo .venv/bin/python -m playwright install-deps chromium` once.
+
+Or do it by hand:
 
 ```bash
 python -m venv .venv

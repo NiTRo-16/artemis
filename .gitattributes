@@ -1,6 +1,8 @@
 # Store and check out text files with LF endings, so shell scripts and config work on the Linux server
 # even when the repository is cloned on Windows.
 * text=auto eol=lf
+# Windows batch files need CRLF, or cmd.exe can misread labels like "goto fail".
+*.bat text eol=crlf
 
 *.png binary
 *.woff2 binary

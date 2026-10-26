@@ -41,7 +41,10 @@ CONFUSABLES = {
 MULTI_CHAR = (("rn", "m"), ("vv", "w"))
 TONE_ORDER = {"red": 0, "amber": 1, "green": 2, "info": 3}
 
-_extract = tldextract.TLDExtract(suffix_list_urls=(), include_psl_private_domains=True)
+# India's bank-only and finance-only domains (RBI, 2025) are newer than the bundled suffix list; without
+# them, onlinesbi.sbi.bank.in would count as part of "bank.in" rather than belonging to SBI.
+_extract = tldextract.TLDExtract(suffix_list_urls=(), include_psl_private_domains=True,
+                                 extra_suffixes=["bank.in", "fin.in"])
 _feed: dict = {"hosts": set(), "links": set(), "next_refresh": 0.0}
 # Link shorteners: anyone can create links on them, so a host-level blocklist match isn't meaningful.
 SHARED_LINK_SERVICES = {"tinyurl.com", "bit.ly", "alturl.com", "t.co", "is.gd", "cutt.ly", "rb.gy", "ow.ly",
