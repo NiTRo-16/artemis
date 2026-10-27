@@ -51,8 +51,9 @@
 	],
 	"syscalls": [
 		{
-			"comment": "Allow create user namespaces",
+			"comment": "Allow create user namespaces, and chroot so Chromium's sandbox can enter its empty root inside its own namespace (without CAP_SYS_CHROOT the kernel refuses chroot anywhere else)",
 			"names": [
+				"chroot",
 				"clone",
 				"setns",
 				"unshare"

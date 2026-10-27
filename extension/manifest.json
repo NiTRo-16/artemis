@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Warns you before you open a site that's reported as phishing or looks like it's impersonating a known brand.",
   "permissions": ["webNavigation", "storage", "activeTab"],
-  "host_permissions": ["http://localhost:8000/*"],
+  "host_permissions": ["https://artemissecure.co.in/*"],
   "background": { "service_worker": "background.js", "type": "module" },
   "action": {
     "default_title": "Artemis Site Check",

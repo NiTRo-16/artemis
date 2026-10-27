@@ -32,7 +32,19 @@ internet.
    [Google sign-in](#google-sign-in) below) and put its ID and secret in `GOOGLE_CLIENT_ID` and
    `GOOGLE_CLIENT_SECRET`. Leave both empty and the button doesn't appear.
 
-3. Build and start:
+3. On Ubuntu 23.10 or later (including 24.04), let Chromium's sandbox create its isolated
+   namespaces. Ubuntu blocks this by default, and the headless browser can't start without it:
+
+   ```bash
+   echo "kernel.apparmor_restrict_unprivileged_userns = 0" | sudo tee /etc/sysctl.d/60-artemis-chromium-userns.conf
+   sudo sysctl --system
+   ```
+
+   This restores Ubuntu's behaviour before 23.10. It applies to the whole host, so run Artemis on a
+   server that does nothing else. Chromium's own sandbox stays on, which is what contains a hostile
+   page if it exploits the browser.
+
+4. Build and start:
 
    ```bash
    docker compose up -d --build
@@ -40,7 +52,7 @@ internet.
 
    The first build downloads the Playwright base image (about 2 GB).
 
-4. Block the app from reaching private networks (run as root):
+5. Block the app from reaching private networks (run as root):
 
    ```bash
    sudo sh deploy/egress-firewall.sh
@@ -171,11 +183,14 @@ docker compose logs app | grep self-test
 ```
 
 A sandbox error usually means the host kernel refuses the user namespaces Chromium's sandbox uses.
-Ubuntu 23.10 and later restrict them by default. In order of preference:
+In order of preference:
 
-1. Check `docker-compose.yml` still has the `seccomp=deploy/seccomp_profile.json` line.
-2. Allow unprivileged user namespaces on the host: `sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0`
-   (make it permanent in `/etc/sysctl.d/`). This affects the whole host, so weigh it.
+1. On Ubuntu 23.10 or later, check step 3 of the first deployment was done:
+   `sysctl kernel.apparmor_restrict_unprivileged_userns` should print `0`. Then run
+   `docker compose restart app`.
+2. Check `docker-compose.yml` still has the `seccomp=deploy/seccomp_profile.json` line. That profile
+   allows the `clone`, `setns`, `unshare` and `chroot` calls the sandbox needs. An error mentioning
+   `sys_chroot` means the profile in use lacks `chroot`.
 3. Last resort: set `ARTEMIS_CHROMIUM_SANDBOX=0` in `.env` and run `docker compose up -d`. Chromium then
    runs without its own sandbox and the container becomes the only boundary. Keep the firewall step.
 

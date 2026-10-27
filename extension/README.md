@@ -4,21 +4,22 @@ Warns before you open a site that's reported as phishing or likely impersonating
 the Artemis server's `/api/check` endpoint. Only the site's domain is sent, and only after the user
 turns warnings on in the welcome page.
 
-## Try it locally
+## Try it
 
-1. Start the Artemis server on `http://localhost:8000`.
-2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and pick
+The extension talks to the live server at `https://artemissecure.co.in`.
+
+1. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and pick
    this `extension` folder.
-3. The welcome page opens. Click **Turn on warnings**.
+2. The welcome page opens. Click **Turn on warnings**.
 
-## Before publishing
+To test against a server on your own computer instead, set `API_BASE` in `config.js` to
+`http://localhost:8000` and `host_permissions` in `manifest.json` to `"http://localhost:8000/*"`.
 
-1. Set `API_BASE` in `config.js` to your Artemis domain (`https://...`).
-2. Set `host_permissions` in `manifest.json` to the same origin, e.g. `"https://your-domain/*"`, and
-   remove the `localhost` entry.
-3. In the Chrome Web Store listing, declare that the extension handles **web browsing activity**
-   (the domains of visited sites), link your privacy policy (`https://your-domain/privacy`), and
-   explain the `webNavigation` permission: it's how the extension sees which site a tab is opening.
+## Publishing to the Chrome Web Store
+
+In the listing, declare that the extension handles **web browsing activity** (the domains of visited
+sites), link the privacy policy (`https://artemissecure.co.in/privacy`), and explain the
+`webNavigation` permission: it's how the extension sees which site a tab is opening.
 
 ## Files
 
