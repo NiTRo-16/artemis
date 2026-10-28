@@ -1,0 +1,28 @@
+{
+  "features": [
+    "host_length",
+    "name_length",
+    "subdomain_levels",
+    "subdomain_length",
+    "digits",
+    "digit_ratio",
+    "hyphens",
+    "name_entropy",
+    "vowel_ratio",
+    "longest_consonant_run",
+    "letter_digit_switches",
+    "is_ip",
+    "punycode",
+    "risky_tld",
+    "uncommon_tld",
+    "tld_length",
+    "free_host",
+    "bait_words",
+    "brand_not_official",
+    "lookalike"
+  ],
+  "threshold": 0.7142120763555322,
+  "trained": "2026-10-29",
+  "trees": 307,
+  "data": "PhiUSIIL (Prasad and Chandra, 2024), CC BY 4.0"
+}

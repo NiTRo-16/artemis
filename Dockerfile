@@ -16,6 +16,8 @@ COPY main.py db.py mail.py google_auth.py netsafety.py scanner.py impersonation.
      payments.py reports.py ./
 COPY index.html app.js theme.js privacy.html terms.html legal.css favicon.svg ./
 COPY fonts ./fonts
+COPY ml/__init__.py ml/url_features.py ml/url_model.py ./ml/
+COPY ml/models/url_model.txt ml/models/url_model.json ./ml/models/
 
 # Accounts database. docker-compose.yml mounts a volume here so it survives rebuilds.
 ENV ARTEMIS_DB=/app/data/artemis.db

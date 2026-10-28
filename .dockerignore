@@ -9,3 +9,8 @@ docker-compose.yml
 DEPLOY.md
 data/
 extension/
+ml/data/
+ai_review/
+mockup/
+evaluation/
+tests/

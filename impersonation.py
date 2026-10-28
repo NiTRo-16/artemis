@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import re
 import time
@@ -18,6 +19,8 @@ import httpx
 import tldextract
 
 from brands import BRANDS
+
+log = logging.getLogger("artemis.impersonation")
 
 OPENPHISH_FEED = "https://raw.githubusercontent.com/openphish/public_feed/refs/heads/main/feed.txt"
 FEED_TTL = 1800            # seconds between feed refreshes
@@ -327,6 +330,23 @@ async def lookup_records(host: str, link: str | None = None) -> dict:
     return {"registration": reg, "certificate": cert, "lists": lists}
 
 
+_url_model_failed = False
+
+
+def url_model_score(host: str) -> dict | None:
+    """The URL model's verdict on a hostname, or None if the model isn't available."""
+    global _url_model_failed
+    if _url_model_failed:
+        return None
+    try:
+        from ml.url_model import score   # imported here: ml.url_features imports this module
+        return score(host)
+    except Exception:   # a missing model or library must never break a scan
+        _url_model_failed = True
+        log.exception("URL model unavailable; scans continue without it")
+        return None
+
+
 async def check_impersonation(host: str, link: str | None = None) -> dict:
     """Impersonation verdict without the page (used when the site can't be loaded)."""
     return assess(host, await lookup_records(host, link))
@@ -369,6 +389,14 @@ def assess(host: str, records: dict, page_signals: list[dict] | None = None, pag
         signal(-20, "green", f"Registered {age_text(age_days)} ({registered.year})")
     else:
         signal(0, "info", f"Registered {age_text(age_days)}")
+
+    # The URL model only counts for young domains, or ones whose age isn't published: its false alarms on
+    # genuine sites are long-established names such as google-analytics.com (see ml/README.md).
+    if not brand and (age_days is None or age_days < 365):
+        model = url_model_score(host)
+        if model and model["flagged"]:
+            why = "; ".join(r[0].lower() + r[1:] for r in model["reasons"]) or "its overall shape"
+            signal(25, "amber", f"The address looks like ones used for phishing: {why}")
 
     first_cert = cert and cert.get("first")
     cert_days = (now - first_cert).days if first_cert else None

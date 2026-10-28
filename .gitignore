@@ -14,3 +14,9 @@ data/
 
 # Evaluation data: live phishing links and scan results
 evaluation/data/
+
+# AI review output: reports and model-written proof scripts
+ai_review/out/
+
+# ML training data (downloaded datasets) and local experiments
+ml/data/

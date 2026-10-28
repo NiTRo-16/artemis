@@ -1,0 +1,3 @@
+# Training only. Scoring in the app needs just lightgbm (added to the main requirements when the model is wired in).
+lightgbm
+scikit-learn
