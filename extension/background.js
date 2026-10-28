@@ -19,6 +19,7 @@ export async function verdictFor(host) {
     const res = await fetch(`${API_BASE}/api/check`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "omit",   // never send the Artemis sign-in cookie: checks must not be linked to an account
       body: JSON.stringify({ domain: host }),
     });
     if (!res.ok) return null;   // rate limited, rejected or server error: don't get in the way

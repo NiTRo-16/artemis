@@ -19,6 +19,21 @@ Because the phishing links come from OpenPhish, which Artemis also checks, `repo
 lookalike names, domain age, certificate age, page forms and payment signals). The second is the honest
 measure of what Artemis adds. Every rate comes with a 95% confidence interval.
 
+## Collecting on the server
+
+`scheduled.py` runs the three steps (collect new phishing links, scan up to 100 of them, refresh the
+report). On the server, cron runs it every 4 hours in a container built from the app's image, so scans use
+the same sandboxed browser, seccomp profile and egress firewall as the live site:
+
+```bash
+sudo mkdir -p /opt/artemis/evaluation/data && sudo chown 1001:1001 /opt/artemis/evaluation/data
+sudo tee /etc/cron.d/artemis-evaluation >/dev/null <<'EOF'
+0 */4 * * * root cd /opt/artemis && flock -n /run/artemis-eval.lock docker compose run --rm --no-deps -T -e SCANS_PER_RUN=100 -v /opt/artemis/evaluation:/app/evaluation app python evaluation/scheduled.py >/dev/null 2>&1
+EOF
+```
+
+Progress is in `evaluation/data/scheduled.log`. `flock` skips a run if the previous one is still going.
+
 Data and results are written to `evaluation/data/`, which is not committed: the phishing links are live
 malicious addresses, and the results are specific to when they were scanned.
 
