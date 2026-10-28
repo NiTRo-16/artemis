@@ -1,0 +1,4 @@
+# Only for the AI review tool, not the app.
+httpx
+semgrep
+# anthropic>=1.0   only for --provider claude

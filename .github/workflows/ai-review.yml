@@ -1,0 +1,45 @@
+name: AI security review
+
+on:
+  pull_request:
+  workflow_dispatch:   # run by hand from the Actions tab to review the whole project
+
+permissions:
+  contents: read
+  models: read   # lets GITHUB_TOKEN use GitHub Models, which is free within daily limits
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the review tools
+        run: pip install -r ai_review/requirements.txt
+
+      - name: Build the proof sandbox
+        run: docker build -f ai_review/sandbox.Dockerfile -t artemis-review-sandbox .
+
+      - name: Review
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python ai_review/review.py --provider github --base "origin/${{ github.base_ref }}"
+          else
+            python ai_review/review.py --provider github
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-review
+          path: ai_review/out/
+          if-no-files-found: ignore

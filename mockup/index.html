@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artemis UI mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#050507; --surface:#0c0d11; --surface-2:#13141a; --surface-3:#1a1c23;
+    --line:rgba(236,240,255,.09); --line-2:rgba(236,240,255,.17);
+    --fg:#f1f2f5; --muted:#9a9eaa; --dim:#6b7080;
+    --accent:#4f7dff; --accent-2:#9ab8ff; --accent-ink:#ffffff; --glow:rgba(29,63,209,.35);
+    --good:#3ddc84; --warn:#ffa24a; --bad:#ff5d6c;
+    --good-bg:rgba(61,220,132,.10); --warn-bg:rgba(255,162,74,.10); --bad-bg:rgba(255,93,108,.11);
+    --display:"Geist","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --radius:24px; --r-btn:10px; --r-card:16px;
+  }
+  :root[data-theme="light"]{
+    color-scheme: light;
+    --bg:#eef0f4; --surface:#ffffff; --surface-2:#f4f6f9; --surface-3:#e9ecf1;
+    --line:rgba(17,24,39,.09); --line-2:rgba(17,24,39,.17);
+    --fg:#10131a; --muted:#4b5263; --dim:#6b7283;
+    --accent:#2f5ee8; --accent-2:#2f5ee8; --glow:rgba(47,94,232,.12);
+    --good:#0f8a4c; --warn:#a85a00; --bad:#c42b3b;
+    --good-bg:rgba(15,138,76,.09); --warn-bg:rgba(168,90,0,.09); --bad-bg:rgba(196,43,59,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  [hidden]{display:none!important}
+  body{background:var(--bg);color:var(--fg);font-family:var(--display);line-height:1.5;
+       -webkit-font-smoothing:antialiased;padding:14px;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  svg{display:block}
+  .mono{font-family:var(--mono)}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+
+  /* ---------- frame (from the portfolio) ---------- */
+  .frame{position:relative;max-width:1320px;margin:0 auto;min-height:calc(100vh - 28px);
+         border:1px solid var(--line-2);border-radius:var(--radius);background:var(--surface);
+         overflow:hidden;display:flex;flex-direction:column}
+  .frame::before{content:"";position:absolute;inset:0;pointer-events:none;
+         background:radial-gradient(900px 520px at 78% 30%,var(--glow),transparent 70%)}
+  .mock-tag{position:fixed;right:22px;bottom:20px;z-index:50;font-family:var(--mono);font-size:11px;
+         letter-spacing:.08em;color:var(--muted);background:var(--surface-2);border:1px solid var(--line-2);
+         padding:6px 10px;border-radius:8px}
+
+  /* ---------- buttons ---------- */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;
+       border-radius:var(--r-btn);font-size:14px;font-weight:500;border:1px solid var(--line-2);
+       background:var(--surface-2);transition:background .15s,border-color .15s;white-space:nowrap}
+  .btn:hover{background:var(--surface-3);border-color:var(--dim)}
+  .btn:focus-visible,.tool:focus-visible,.icon-btn:focus-visible,.field input:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+  .btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .btn-primary:hover{background:#3d6af0;border-color:#3d6af0}
+  .btn-ghost{background:transparent;border-color:transparent}
+  .btn-ghost:hover{background:var(--surface-2);border-color:var(--line)}
+  .btn-danger{background:transparent;border-color:var(--bad);color:var(--bad)}
+  .btn-danger:hover{background:var(--bad-bg);border-color:var(--bad)}
+  .btn-lg{height:46px;padding:0 20px;font-size:15px}
+  .icon-btn{width:38px;height:38px;display:inline-grid;place-items:center;border-radius:var(--r-btn);
+            border:1px solid var(--line-2);background:var(--surface-2)}
+  .icon-btn:hover{background:var(--surface-3)}
+  .icon{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---------- header: logo, then tools, then account ---------- */
+  header{position:relative;z-index:5;display:flex;align-items:center;gap:28px;padding:16px 22px;
+         border-bottom:1px solid var(--line)}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:600;font-size:17px;letter-spacing:-.01em}
+  .logo-mark{width:26px;height:26px}
+  .tools{display:flex;align-items:center;gap:4px}
+  .tool{display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:var(--r-btn);
+        font-size:14px;color:var(--muted);border:1px solid transparent}
+  .tool:hover{color:var(--fg);background:var(--surface-2)}
+  .tool[aria-current="page"]{color:var(--fg);background:var(--surface-2);border-color:var(--line-2)}
+  .tool .new{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--accent-2);
+        border:1px solid var(--line-2);border-radius:5px;padding:1px 5px}
+  .account{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .menu-btn{display:none}
+  .user-chip{display:flex;align-items:center;gap:9px;height:38px;padding:0 12px 0 6px;border-radius:var(--r-btn);
+        border:1px solid var(--line-2);background:var(--surface-2);font-size:13.5px}
+  .avatar{width:26px;height:26px;border-radius:7px;background:var(--accent);color:#fff;display:grid;place-items:center;
+        font-size:12px;font-weight:600}
+
+  main{position:relative;z-index:1;flex:1;padding:34px 34px 26px}
+  .view{animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  /* ---------- scan (home) ---------- */
+  .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:start}
+  .hero h1{font-size:clamp(40px,5.2vw,68px);line-height:1.02;letter-spacing:-.045em;font-weight:500;margin:18px 0 18px}
+  .hero h1 .soft{color:var(--dim)}
+  .lede{color:var(--muted);font-size:17px;max-width:520px}
+  .scanbox{margin-top:30px;max-width:600px}
+  .field{display:flex;align-items:center;gap:10px;height:58px;padding:0 8px 0 16px;border-radius:14px;
+         border:1px solid var(--line-2);background:var(--surface-2)}
+  .field:focus-within{border-color:var(--accent)}
+  .field input{flex:1;min-width:0;height:100%;background:none;border:0;outline:0;color:var(--fg);
+         font-family:var(--mono);font-size:15px}
+  .field input::placeholder{color:var(--dim)}
+  .hint-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+  .hint-row .eyebrow{margin-right:4px}
+  .chip{font-family:var(--mono);font-size:12.5px;color:var(--muted);height:30px;padding:0 10px;
+        border-radius:8px;border:1px solid var(--line);background:transparent;display:inline-flex;align-items:center;gap:6px}
+  .chip:hover{color:var(--fg);border-color:var(--line-2)}
+  .accepts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:34px;max-width:600px}
+  .accept{border:1px solid var(--line);border-radius:12px;padding:12px;background:color-mix(in srgb,var(--surface-2) 60%,transparent)}
+  .accept b{display:block;font-size:13.5px;font-weight:500;margin:8px 0 2px}
+  .accept span{font-size:12.5px;color:var(--muted)}
+  .accept .icon{color:var(--accent-2)}
+
+  /* live panel (the portfolio's analyzer, grown up) */
+  .panel{border:1px solid var(--line-2);border-radius:20px;background:color-mix(in srgb,var(--surface) 82%,transparent);
+         backdrop-filter:blur(6px);padding:22px}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .target{font-family:var(--mono);font-size:14px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);
+          background:var(--surface-2);display:flex;gap:10px;align-items:center;overflow:hidden}
+  .target span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gauge-row{display:grid;grid-template-columns:1fr 170px;gap:20px;align-items:center;margin-top:14px}
+  .checks{list-style:none}
+  .checks li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;
+             border-bottom:1px solid var(--line);font-size:14px}
+  .checks li:last-child{border-bottom:0}
+  .checks .where{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}
+  .status{font-family:var(--mono);font-size:11px;letter-spacing:.08em;min-width:62px;text-align:center;
+          padding:3px 8px;border-radius:6px;background:var(--surface-3);color:var(--dim)}
+  .status.pass{background:var(--good-bg);color:var(--good)}
+  .status.flag{background:var(--bad-bg);color:var(--bad)}
+  .status.warn{background:var(--warn-bg);color:var(--warn)}
+  .status.run{color:var(--accent-2)}
+  .gauge{position:relative;width:170px;height:170px}
+  .gauge svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .gauge .num{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+  .gauge .num b{font-size:46px;font-weight:500;letter-spacing:-.04em;line-height:1}
+  .gauge .num span{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--muted);margin-top:6px}
+  .sweep{transform-origin:85px 85px;animation:spin 1.6s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .panel-foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:12px}
+  .small{font-size:12.5px;color:var(--muted)}
+
+  /* ---------- result ---------- */
+  .result-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px;
+               padding-bottom:22px;border-bottom:1px solid var(--line)}
+  .result-head h2{font-family:var(--mono);font-weight:500;font-size:clamp(20px,2.6vw,30px);letter-spacing:-.02em;margin-top:8px}
+  .verdict{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;
+           padding:6px 10px;border-radius:8px;background:var(--bad-bg);color:var(--bad);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent)}
+  .dot{width:7px;height:7px;border-radius:2px;background:currentColor}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:20px;margin-top:22px}
+  .card{border:1px solid var(--line-2);border-radius:var(--r-card);background:var(--surface);padding:20px}
+  .card h3{font-size:16px;font-weight:500;margin-bottom:4px}
+  .card .sub{font-size:13px;color:var(--muted);margin-bottom:14px}
+  .stack{display:grid;gap:20px;align-content:start}
+  .reasons{list-style:none;display:grid;gap:10px}
+  .reasons li{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:12px;border-radius:12px;background:var(--surface-2);font-size:14px}
+  .reasons li small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+  .sev{width:8px;height:8px;border-radius:2px;margin-top:7px}
+  .grades{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .grade{border:1px solid var(--line);border-radius:12px;padding:12px 10px;text-align:center}
+  .grade b{display:block;font-size:26px;font-weight:500;letter-spacing:-.03em}
+  .grade span{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.06em}
+  .shot{border-radius:12px;border:1px solid var(--line-2);overflow:hidden;background:#f4f5f7}
+  .shot-bar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#e3e5ea;color:#3b404c;font-family:var(--mono);font-size:11.5px}
+  .shot-bar i{width:8px;height:8px;border-radius:50%;background:#c4c8d0;display:block}
+  .shot-body{padding:22px 26px 26px;color:#1d2230}
+  .fake-brand{display:flex;align-items:center;gap:8px;font-weight:700;color:#1b3f8f;font-size:15px}
+  .fake-brand i{width:22px;height:22px;border-radius:50%;background:#1b3f8f;display:block}
+  .fake-input{height:30px;border:1px solid #c9cdd6;border-radius:6px;margin-top:10px;background:#fff;font-size:11.5px;
+              color:#8a90a0;display:flex;align-items:center;padding:0 10px}
+  .fake-input.hl{outline:2px solid #ff5d6c;outline-offset:2px;color:#b3261e}
+  .fake-btn{height:30px;border-radius:6px;margin-top:12px;background:#1b3f8f;color:#fff;font-size:12px;display:grid;place-items:center}
+  .chain{list-style:none;display:grid;gap:0;font-family:var(--mono);font-size:12.5px}
+  .chain li{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .chain li:last-child{border:0}
+  .chain .n{color:var(--dim)}
+  .bars{display:grid;gap:9px}
+  .bar{display:grid;grid-template-columns:1fr 120px 40px;gap:10px;align-items:center;font-size:13px}
+  .bar .track{height:8px;border-radius:4px;background:var(--surface-3);overflow:hidden}
+  .bar .fill{height:100%;background:var(--bad);border-radius:4px}
+  .bar .fill.minus{background:var(--good)}
+  .bar .v{font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:right}
+  .match{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+  .match figure{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface-2)}
+  .match figcaption{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px}
+  .thumb{height:70px;border-radius:6px;background:#f4f5f7;display:flex;flex-direction:column;gap:6px;padding:10px}
+  .thumb i{display:block;height:8px;border-radius:3px;background:#c9cdd6}
+  .thumb i:first-child{width:45%;background:#1b3f8f}
+  .todo{display:grid;gap:10px}
+  .todo a{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);font-size:14px}
+  .todo a:hover{border-color:var(--line-2);background:var(--surface-2)}
+  .todo small{color:var(--muted);font-size:12.5px;display:block}
+
+  /* ---------- messages / qr ---------- */
+  .tool-head{max-width:720px}
+  .tool-head h1{font-size:clamp(32px,3.6vw,46px);letter-spacing:-.04em;font-weight:500;line-height:1.05;margin:12px 0 10px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:28px}
+  textarea{width:100%;min-height:210px;resize:vertical;border-radius:14px;border:1px solid var(--line-2);background:var(--surface-2);
+           color:var(--fg);font-family:var(--mono);font-size:14px;line-height:1.6;padding:16px;outline:0}
+  textarea:focus{border-color:var(--accent)}
+  mark{background:var(--bad-bg);color:var(--bad);border-radius:4px;padding:0 3px}
+  .found{list-style:none;display:grid;gap:10px}
+  .found li{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:12px}
+  .found .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--dim);width:54px}
+  .found .val{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
+  .pattern{padding:14px;border-radius:12px;background:var(--bad-bg);border:1px solid color-mix(in srgb,var(--bad) 30%,transparent);font-size:14px;margin-bottom:14px}
+  .pattern b{color:var(--bad);font-weight:600}
+  .drop{border:1.5px dashed var(--line-2);border-radius:16px;min-height:260px;display:grid;place-content:center;text-align:center;gap:10px;color:var(--muted);background:var(--surface-2)}
+  .drop .icon{width:30px;height:30px;margin:0 auto;color:var(--accent-2)}
+  .kv{display:grid;grid-template-columns:120px 1fr;gap:8px 14px;font-size:14px}
+  .kv dt{font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:2px}
+  .kv dd{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
+
+  /* ---------- watch / history / developers ---------- */
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:400;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line-2)}
+  td{padding:13px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+  td.mono{font-size:13px}
+  .table-wrap{border:1px solid var(--line-2);border-radius:var(--r-card);overflow:auto;background:var(--surface);margin-top:24px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-top:26px}
+  .seg{display:inline-flex;border:1px solid var(--line-2);border-radius:var(--r-btn);padding:3px;background:var(--surface-2)}
+  .seg button{height:30px;padding:0 12px;border-radius:7px;font-size:13px;color:var(--muted)}
+  .seg button[aria-pressed="true"]{background:var(--surface-3);color:var(--fg)}
+  pre{font-family:var(--mono);font-size:13px;line-height:1.7;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px;overflow:auto;color:var(--muted)}
+  pre b{color:var(--fg);font-weight:400}
+  pre i{color:var(--accent-2);font-style:normal}
+  .keyrow{display:flex;gap:10px;align-items:center;margin-top:6px}
+  .key{flex:1;font-family:var(--mono);font-size:13px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted)}
+
+  /* ---------- auth dialog ---------- */
+  .overlay{position:fixed;inset:0;z-index:40;background:rgba(3,4,8,.7);backdrop-filter:blur(4px);display:grid;place-items:center;padding:16px}
+  .dialog{width:100%;max-width:420px;border:1px solid var(--line-2);border-radius:20px;background:var(--surface);padding:26px;position:relative}
+  .dialog h2{font-size:24px;font-weight:500;letter-spacing:-.03em}
+  .dialog .sub{color:var(--muted);font-size:14px;margin:4px 0 20px}
+  .close{position:absolute;top:16px;right:16px}
+  .google{width:100%;height:44px;border-radius:var(--r-btn);background:#fff;color:#1f1f1f;border:1px solid #dadce0;
+          display:flex;align-items:center;justify-content:center;gap:10px;font-size:14.5px;font-weight:500}
+  .google:hover{background:#f6f7f8}
+  .or{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--dim);font-family:var(--mono);font-size:11px;letter-spacing:.12em}
+  .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line-2)}
+  label.lbl{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px}
+  .input{width:100%;height:44px;border-radius:var(--r-btn);border:1px solid var(--line-2);background:var(--surface-2);color:var(--fg);
+         padding:0 12px;font:inherit;font-size:14.5px;outline:0}
+  .input:focus{border-color:var(--accent)}
+  .consent{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--muted);margin-top:16px}
+  .consent input{margin-top:3px;accent-color:var(--accent)}
+  .consent a{color:var(--fg);text-decoration:underline;text-underline-offset:2px}
+  .switch{text-align:center;font-size:13.5px;color:var(--muted);margin-top:16px}
+  .switch button{color:var(--accent-2)}
+
+  footer{position:relative;z-index:1;display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;padding:18px 34px;border-top:1px solid var(--line);
+         font-family:var(--mono);font-size:12px;color:var(--dim)}
+  footer nav{display:flex;gap:18px}
+  footer a:hover{color:var(--fg)}
+
+  /* ---------- mobile menu ---------- */
+  .sheet{position:absolute;left:12px;right:12px;top:70px;z-index:30;border:1px solid var(--line-2);border-radius:16px;background:var(--surface);padding:8px}
+  .sheet .tool{height:46px;font-size:16px}
+
+  @media (max-width:1080px){
+    .tools{display:none}
+    .menu-btn{display:inline-grid}
+    .hero,.grid-2,.split{grid-template-columns:1fr}
+  }
+  @media (max-width:640px){
+    body{padding:0}
+    .frame{border-radius:0;border:0;min-height:100vh}
+    header{padding:12px 16px;gap:10px}
+    main{padding:24px 16px}
+    .account .btn-ghost{display:none}
+    .accepts{grid-template-columns:1fr 1fr}
+    .gauge-row{grid-template-columns:1fr}
+    .gauge{margin:0 auto}
+    .grades{grid-template-columns:repeat(3,1fr)}
+    .bar{grid-template-columns:1fr 80px 36px}
+    footer{padding:16px}
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-scan" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></symbol>
+  <symbol id="i-qr" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z"/><path d="M14 14h2v2h-2zM18 14h2M14 18h2M18 18h2v2"/></symbol>
+  <symbol id="i-watch" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5"/><path d="M4 4v4.5h4.5M12 8v4l3 2"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 5l-3 14"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-upi" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 8h16M4 16h16"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M8 12h8M13 7l5 5-5 5"/><path d="M4 5v14"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M9 6H5v13h13v-4M13 4h7v7M20 4l-9 9"/></symbol>
+</svg>
+
+<div class="frame">
+  <header>
+    <a class="logo" href="#scan" data-go="scan" aria-label="Artemis home">
+      <svg class="logo-mark" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M13 13 L21.2 4.8" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/><circle cx="13" cy="13" r="2.2" fill="var(--accent)"/></svg>
+      Artemis
+    </a>
+    <nav class="tools" aria-label="Tools">
+      <a class="tool" href="#scan" data-go="scan" aria-current="page"><svg class="icon"><use href="#i-scan"/></svg>Scan</a>
+      <a class="tool" href="#messages" data-go="messages"><svg class="icon"><use href="#i-msg"/></svg>Message check <span class="new">NEW</span></a>
+      <a class="tool" href="#qr" data-go="qr"><svg class="icon"><use href="#i-qr"/></svg>QR and UPI</a>
+      <a class="tool" href="#watch" data-go="watch"><svg class="icon"><use href="#i-watch"/></svg>Domain watch <span class="new">NEW</span></a>
+      <a class="tool" href="#history" data-go="history"><svg class="icon"><use href="#i-history"/></svg>History</a>
+      <a class="tool" href="#developers" data-go="developers"><svg class="icon"><use href="#i-code"/></svg>API</a>
+    </nav>
+    <div class="account">
+      <button class="icon-btn" id="theme" aria-label="Switch theme"><svg class="icon"><use href="#i-moon"/></svg></button>
+      <div id="signed-out" style="display:flex;gap:8px">
+        <button class="btn btn-ghost" data-auth="login">Log in</button>
+        <button class="btn btn-primary" data-auth="signup">Sign up</button>
+      </div>
+      <div id="signed-in" hidden>
+        <button class="user-chip" id="sign-out" title="Sign out (mock)"><span class="avatar">PG</span>parth@gmail.com</button>
+      </div>
+      <button class="icon-btn menu-btn" id="menu" aria-label="Open menu"><svg class="icon"><use href="#i-menu"/></svg></button>
+    </div>
+    <div class="sheet" id="sheet" hidden></div>
+  </header>
+
+  <main>
+    <!-- ================= SCAN ================= -->
+    <section class="view" data-view="scan">
+      <div class="hero">
+        <div>
+          <p class="eyebrow">Website, link and UPI safety check</p>
+          <h1>Check a link before you trust it. <span class="soft">See the proof.</span></h1>
+          <p class="lede">Paste a website, a link from a message, or a UPI payment link. Artemis checks its certificate, its age, whether it copies a known brand, and opens it in a sealed browser to look for fake login and payment forms.</p>
+          <div class="scanbox">
+            <form class="field" id="scan-form">
+              <svg class="icon" style="color:var(--dim)"><use href="#i-link"/></svg>
+              <input id="scan-input" value="sbi-kyc-update.example/pan" aria-label="Link, domain or UPI ID" placeholder="example.com, a link or a UPI ID" autocomplete="off">
+              <button class="btn btn-primary" type="submit">Scan</button>
+            </form>
+            <div class="hint-row">
+              <span class="eyebrow">Recent</span>
+              <button class="chip" data-fill="github.com">github.com</button>
+              <button class="chip" data-fill="paypal-login-secure.example">paypal-login-secure.example</button>
+              <button class="chip" data-fill="upi://pay?pa=sample.refund@upi">upi://pay?pa=sample…</button>
+            </div>
+          </div>
+          <div class="accepts">
+            <div class="accept"><svg class="icon"><use href="#i-link"/></svg><b>Websites</b><span>Domains and full links</span></div>
+            <div class="accept"><svg class="icon"><use href="#i-upi"/></svg><b>UPI links</b><span>Payee, note and amount</span></div>
+            <div class="accept"><svg class="icon"><use href="#i-msg"/></svg><b>Messages</b><span>SMS and WhatsApp text</span></div>
+            <div class="accept"><svg class="icon"><use href="#i-qr"/></svg><b>QR codes</b><span>From a screenshot</span></div>
+          </div>
+        </div>
+
+        <div class="panel" aria-live="polite">
+          <div class="panel-head"><span class="eyebrow">Live scan</span><span class="eyebrow" id="elapsed">Ready</span></div>
+          <div class="target"><svg class="icon" style="color:var(--dim);flex:none"><use href="#i-link"/></svg><span id="target-text">sbi-kyc-update.example/pan</span></div>
+          <div class="gauge-row">
+            <ul class="checks" id="checks"></ul>
+            <div class="gauge">
+              <svg viewBox="0 0 170 170">
+                <circle cx="85" cy="85" r="74" fill="none" stroke="var(--surface-3)" stroke-width="12"/>
+                <circle id="arc" cx="85" cy="85" r="74" fill="none" stroke="var(--bad)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 465" opacity="0"/>
+                <g id="sweep" class="sweep" hidden><path d="M85 85 L85 11" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></g>
+              </svg>
+              <div class="num"><b id="score">0</b><span>RISK</span></div>
+            </div>
+          </div>
+          <div class="panel-foot">
+            <span class="small" id="panel-note">Each check appears as it finishes.</span>
+            <button class="btn" id="open-report" hidden>Open full report</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= RESULT ================= -->
+    <section class="view" data-view="result" hidden>
+      <div class="result-head">
+        <div>
+          <p class="eyebrow">Scan result · sample</p>
+          <h2>sbi-kyc-update.example</h2>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
+            <span class="verdict"><span class="dot"></span>HIGH RISK · 91</span>
+            <span class="small">Imitates State Bank of India · registered 3 days ago</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn"><svg class="icon"><use href="#i-share"/></svg>Share result</button>
+          <button class="btn"><svg class="icon"><use href="#i-flag"/></svg>Report site</button>
+          <button class="btn btn-danger">Continue anyway</button>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="stack">
+          <div class="card">
+            <h3>Why it's risky</h3>
+            <p class="sub">The main reasons, most serious first.</p>
+            <ul class="reasons">
+              <li><span class="sev" style="background:var(--bad)"></span><div>The page asks for your SBI username and password<small>Found in the sealed browser after the page's scripts ran.</small></div></li>
+              <li><span class="sev" style="background:var(--bad)"></span><div>The name copies a bank: "sbi" plus "kyc-update"<small>Not one of State Bank of India's official domains.</small></div></li>
+              <li><span class="sev" style="background:var(--bad)"></span><div>The login form sends your details to a different site<small>Form target: collect.example-host.example</small></div></li>
+              <li><span class="sev" style="background:var(--warn)"></span><div>The domain was registered 3 days ago<small>Genuine bank sites are usually years old.</small></div></li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Security checks</h3>
+            <p class="sub">Grades for how the site is set up.</p>
+            <div class="grades">
+              <div class="grade"><b style="color:var(--good)">A</b><span>TLS</span></div>
+              <div class="grade"><b style="color:var(--bad)">F</b><span>HEADERS</span></div>
+              <div class="grade"><b style="color:var(--warn)">C</b><span>COOKIES</span></div>
+              <div class="grade"><b style="color:var(--bad)">F</b><span>EMAIL</span></div>
+              <div class="grade"><b style="color:var(--warn)">D</b><span>EXPOSURE</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Model score and what drove it</h3>
+            <p class="sub">The machine learning check, explained. Red pushes the risk up, green pulls it down.</p>
+            <div class="bars">
+              <div class="bar">Password form sends off-site<div class="track"><div class="fill" style="width:88%"></div></div><span class="v">+0.31</span></div>
+              <div class="bar">Brand name in a new domain<div class="track"><div class="fill" style="width:70%"></div></div><span class="v">+0.24</span></div>
+              <div class="bar">Domain age under 7 days<div class="track"><div class="fill" style="width:52%"></div></div><span class="v">+0.18</span></div>
+              <div class="bar">Valid certificate<div class="track"><div class="fill minus" style="width:16%"></div></div><span class="v">-0.05</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <h3>What the page looks like</h3>
+            <p class="sub">Captured in a sealed browser. You don't need to open it.</p>
+            <div class="shot">
+              <div class="shot-bar"><i></i><i></i><i></i><span>sbi-kyc-update.example/pan</span></div>
+              <div class="shot-body">
+                <div class="fake-brand"><i></i>SBI Online</div>
+                <div style="font-size:12px;margin-top:8px;color:#5a6070">Your KYC has expired. Update now to avoid account block.</div>
+                <div class="fake-input hl">Username</div>
+                <div class="fake-input hl">Password</div>
+                <div class="fake-btn">Update KYC</div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Looks like</h3>
+            <p class="sub">Compared with the real login pages of 67 brands.</p>
+            <div class="match">
+              <figure><div class="thumb"><i></i><i></i><i></i></div><figcaption>This page</figcaption></figure>
+              <figure><div class="thumb"><i></i><i></i><i></i></div><figcaption>onlinesbi.sbi · 92% similar</figcaption></figure>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Where the link goes</h3>
+            <p class="sub">Every redirect, in order.</p>
+            <ol class="chain">
+              <li><span class="n">1</span><span>bit.example/x7Kq</span><span class="status">301</span></li>
+              <li><span class="n">2</span><span>sbi-kyc-update.example/</span><span class="status">302</span></li>
+              <li><span class="n">3</span><span>sbi-kyc-update.example/pan</span><span class="status flag">LOGIN</span></li>
+            </ol>
+          </div>
+          <div class="card">
+            <h3>If you already entered details</h3>
+            <div class="todo" style="margin-top:12px">
+              <a href="#"><span>Call your bank and block net banking<small>Use the number on your card or passbook.</small></span><svg class="icon"><use href="#i-out"/></svg></a>
+              <a href="#"><span>Report it on cybercrime.gov.in or call 1930<small>The national cyber crime helpline.</small></span><svg class="icon"><use href="#i-out"/></svg></a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= MESSAGES ================= -->
+    <section class="view" data-view="messages" hidden>
+      <div class="tool-head">
+        <p class="eyebrow">Message check</p>
+        <h1>Paste a message you're not sure about.</h1>
+        <p class="lede">Artemis finds every link, UPI ID and phone number in it, checks each one, and spots the wording scammers use.</p>
+      </div>
+      <div class="split">
+        <div>
+          <textarea id="msg" aria-label="Message">Dear Customer, your SBI YONO account will be BLOCKED today. Update your PAN immediately: http://sbi-kyc-update.example/pan
+For refund of Rs 4,999 pay Rs 1 to sample.refund@upi to verify.</textarea>
+          <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-lg">Check message</button>
+            <span class="small" style="align-self:center">Messages aren't stored.</span>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Result · sample</h3>
+          <p class="sub">2 items found, both risky.</p>
+          <div class="pattern"><b>Scam pattern: account block threat.</b> Banks don't block accounts by SMS or ask you to update PAN through a link. The words <mark>BLOCKED today</mark> and <mark>immediately</mark> are there to rush you.</div>
+          <ul class="found">
+            <li><span class="k">LINK</span><span class="val">sbi-kyc-update.example/pan</span><span class="status flag">HIGH</span></li>
+            <li><span class="k">UPI ID</span><span class="val">sample.refund@upi<br><span class="small" style="font-family:var(--display)">Paying never gets you a refund.</span></span><span class="status flag">HIGH</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= QR ================= -->
+    <section class="view" data-view="qr" hidden>
+      <div class="tool-head">
+        <p class="eyebrow">QR and UPI check</p>
+        <h1>Check a QR code or UPI link before you pay.</h1>
+        <p class="lede">Upload a screenshot of a QR code, or paste a UPI link. Artemis reads who gets the money, the note and the amount, and warns you about known tricks.</p>
+      </div>
+      <div class="split">
+        <label class="drop">
+          <svg class="icon"><use href="#i-up"/></svg>
+          <span style="color:var(--fg);font-size:15px">Drop a QR screenshot here</span>
+          <span class="small">or click to choose a file · PNG or JPG</span>
+          <input type="file" accept="image/*" hidden>
+        </label>
+        <div class="card">
+          <h3>What this QR does · sample</h3>
+          <p class="sub">Decoded from the image.</p>
+          <dl class="kv">
+            <dt>Pays to</dt><dd>sample.refund@upi</dd>
+            <dt>Name shown</dt><dd>SBI Refund Desk</dd>
+            <dt>Amount</dt><dd>Rs 4,999</dd>
+            <dt>Note</dt><dd>Refund for KYC</dd>
+          </dl>
+          <div class="pattern" style="margin:16px 0 0"><b>This QR takes money from you.</b> Scanning a QR and entering your PIN always sends money. You never need your PIN to receive a refund.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= DOMAIN WATCH ================= -->
+    <section class="view" data-view="watch" hidden>
+      <div class="tool-head">
+        <p class="eyebrow">Domain watch</p>
+        <h1>New lookalike sites, spotted as they appear.</h1>
+        <p class="lede">Artemis reads public certificate logs and flags new domains that copy Indian banks, payment apps and popular services, often before any blocklist has them.</p>
+      </div>
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Filter">
+          <button aria-pressed="true">All</button><button aria-pressed="false">Banks</button><button aria-pressed="false">Payments</button><button aria-pressed="false">Shopping</button>
+        </div>
+        <button class="btn">Watch my brand</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Seen</th><th>Domain</th><th>Copies</th><th>Why</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">2 min ago</td><td class="mono">sbi-kyc-update.example</td><td>State Bank of India</td><td>Brand name plus "kyc"</td><td><span class="status flag">LIVE</span></td></tr>
+            <tr><td class="mono">9 min ago</td><td class="mono">paytm-cashback.example</td><td>Paytm</td><td>Brand name plus "cashback"</td><td><span class="status warn">PARKED</span></td></tr>
+            <tr><td class="mono">14 min ago</td><td class="mono">hdfcbannk.example</td><td>HDFC Bank</td><td>One letter repeated</td><td><span class="status flag">LIVE</span></td></tr>
+            <tr><td class="mono">31 min ago</td><td class="mono">phonepe-support.example</td><td>PhonePe</td><td>Brand name plus "support"</td><td><span class="status">OFFLINE</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small" style="margin-top:12px">Sample rows. Domains in the real feed are checked automatically and reported to blocklists.</p>
+    </section>
+
+    <!-- ================= HISTORY ================= -->
+    <section class="view" data-view="history" hidden>
+      <div class="tool-head">
+        <p class="eyebrow">Your history</p>
+        <h1>Everything you've checked.</h1>
+        <p class="lede">Saved to your account, so you can find a result again or share it. Delete any of it at any time.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>When</th><th>Checked</th><th>Type</th><th>Result</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="mono">Today, 10:42</td><td class="mono">sbi-kyc-update.example</td><td>Website</td><td><span class="status flag">HIGH</span></td><td style="text-align:right"><button class="btn" data-go="result">Open</button></td></tr>
+            <tr><td class="mono">Today, 10:40</td><td class="mono">Message, 2 items</td><td>Message</td><td><span class="status flag">HIGH</span></td><td style="text-align:right"><button class="btn">Open</button></td></tr>
+            <tr><td class="mono">Yesterday</td><td class="mono">github.com</td><td>Website</td><td><span class="status pass">LOW</span></td><td style="text-align:right"><button class="btn">Open</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= DEVELOPERS ================= -->
+    <section class="view" data-view="developers" hidden>
+      <div class="tool-head">
+        <p class="eyebrow">API</p>
+        <h1>Use the same checks in your own app.</h1>
+        <p class="lede">Send a link or UPI ID, get the risk level and the reasons back as JSON. Free for up to 100 checks a day.</p>
+      </div>
+      <div class="split">
+        <div class="card">
+          <h3>Your API key</h3>
+          <p class="sub">Keep it secret. You can replace it at any time.</p>
+          <div class="keyrow"><span class="key">art_live_••••••••••••••••3f9a</span><button class="btn">Copy</button></div>
+          <div class="keyrow" style="margin-top:14px"><button class="btn">Replace key</button><span class="small">Used today: 0 of 100</span></div>
+        </div>
+        <pre><b>curl</b> https://artemissecure.co.in/api/v1/check \
+  -H <i>"Authorization: Bearer $ARTEMIS_KEY"</i> \
+  -d <i>'{"target": "sbi-kyc-update.example"}'</i>
+
+{
+  "risk": <i>"high"</i>, "score": <i>91</i>,
+  "reasons": [<i>"login form sends details off-site"</i>, ...],
+  "report": <i>"https://artemissecure.co.in/r/9Qx2"</i>
+}</pre>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Artemis · Team Artemis, IPS Academy Indore · <span style="color:var(--accent-2)">UI mock with sample data</span></span>
+    <nav><a href="#">Privacy</a><a href="#">Terms</a><a href="#">How it works</a><a href="#">Status</a></nav>
+  </footer>
+</div>
+
+<!-- ================= AUTH ================= -->
+<div class="overlay" id="auth" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <button class="icon-btn close" id="auth-close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+    <h2 id="auth-title">Create your account</h2>
+    <p class="sub" id="auth-sub">Save your history, sync settings and get alerts for your brand.</p>
+    <button class="google" id="google">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.8c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.6 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.8c-2.1 1.4-4.8 2.3-8.5 2.3-6.2 0-11.5-4.2-13.4-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>
+      Continue with Google
+    </button>
+    <div class="or">OR</div>
+    <form id="auth-form">
+      <label class="lbl" for="email">Email</label>
+      <input class="input" id="email" type="email" placeholder="you@example.com" autocomplete="email">
+      <label class="lbl" for="pw">Password</label>
+      <input class="input" id="pw" type="password" placeholder="At least 10 characters" autocomplete="new-password">
+      <label class="consent" id="consent"><input type="checkbox"><span>I agree to the <a href="#">Terms</a> and <a href="#">Privacy policy</a>. Artemis gives guidance, not a guarantee.</span></label>
+      <button class="btn btn-primary btn-lg" style="width:100%;margin-top:18px" id="auth-submit">Create account</button>
+    </form>
+    <p class="switch" id="auth-switch">Already have an account? <button type="button" data-auth="login">Log in</button></p>
+  </div>
+</div>
+
+
+<script>
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+
+  /* ---------- views ---------- */
+  function go(view) {
+    $$("[data-view]").forEach(v => v.hidden = v.dataset.view !== view);
+    $$(".tools .tool").forEach(t => t.toggleAttribute("aria-current", t.dataset.go === view || (view === "result" && t.dataset.go === "scan")));
+    $$(".tools .tool[aria-current]").forEach(t => t.setAttribute("aria-current", "page"));
+    $("#sheet").hidden = true;
+    history.replaceState(null, "", "#" + view);
+    window.scrollTo(0, 0);
+  }
+  document.addEventListener("click", e => {
+    const g = e.target.closest("[data-go]");
+    if (g) { e.preventDefault(); go(g.dataset.go); }
+    const a = e.target.closest("[data-auth]");
+    if (a) openAuth(a.dataset.auth);
+    const f = e.target.closest("[data-fill]");
+    if (f) { $("#scan-input").value = f.dataset.fill; }
+  });
+
+  /* ---------- mobile menu ---------- */
+  $("#menu").addEventListener("click", () => {
+    const s = $("#sheet");
+    if (s.hidden) s.innerHTML = $(".tools").innerHTML
+      + ($("#signed-in").hidden ? '<button class="tool" data-auth="login" style="width:100%">Log in</button>' : "");
+    s.hidden = !s.hidden;
+  });
+
+  /* ---------- theme ---------- */
+  $("#theme").addEventListener("click", () => {
+    const r = document.documentElement;
+    r.dataset.theme = r.dataset.theme === "light" ? "dark" : "light";
+  });
+
+  /* ---------- live scan (simulated) ---------- */
+  const STEPS = [
+    ["Certificate", "TLS", "pass"],
+    ["Lookalike name", "brand match", "flag"],
+    ["Domain age", "RDAP", "warn"],
+    ["Blocklists", "3 lists", "pass"],
+    ["Page in sealed browser", "Chromium", "flag"],
+    ["Model score", "ML", "flag"],
+  ];
+  const WORD = { pass: "PASS", flag: "FLAG", warn: "WARN" };
+  function resetChecks() {
+    $("#checks").innerHTML = STEPS.map(([n, w]) =>
+      `<li><span>${n}<span class="where">${w}</span></span><span class="status">· · ·</span></li>`).join("");
+  }
+  resetChecks();
+  let timer;
+  $("#scan-form").addEventListener("submit", e => {
+    e.preventDefault();
+    clearInterval(timer);
+    resetChecks();
+    $("#target-text").textContent = $("#scan-input").value || "example.com";
+    $("#open-report").hidden = true;
+    $("#sweep").hidden = false;
+    $("#score").textContent = "0";
+    $("#arc").setAttribute("stroke-dasharray", "0 465");
+    $("#arc").setAttribute("opacity", "0");
+    $("#panel-note").textContent = "Checking. Each result appears as it finishes.";
+    const items = $$("#checks li .status");
+    let i = 0, t0 = Date.now();
+    items[0].className = "status run"; items[0].textContent = "RUN";
+    timer = setInterval(() => {
+      const kind = STEPS[i][2];
+      items[i].className = "status " + kind; items[i].textContent = WORD[kind];
+      const score = Math.round(91 * (i + 1) / STEPS.length);
+      $("#score").textContent = score;
+      $("#arc").setAttribute("stroke-dasharray", `${465 * score / 100} 465`);
+      $("#arc").setAttribute("opacity", "1");
+      $("#elapsed").textContent = ((Date.now() - t0) / 1000).toFixed(1) + " s";
+      i++;
+      if (i < STEPS.length) { items[i].className = "status run"; items[i].textContent = "RUN"; return; }
+      clearInterval(timer);
+      $("#sweep").hidden = true;
+      $("#panel-note").textContent = "High risk. Don't enter any details on this site.";
+      $("#open-report").hidden = false;
+    }, 650);
+  });
+  $("#open-report").addEventListener("click", () => go("result"));
+
+  /* ---------- auth (mock) ---------- */
+  function openAuth(mode) {
+    const login = mode === "login";
+    $("#auth-title").textContent = login ? "Welcome back" : "Create your account";
+    $("#auth-sub").textContent = login ? "Log in to see your history and settings." : "Save your history, sync settings and get alerts for your brand.";
+    $("#auth-submit").textContent = login ? "Log in" : "Create account";
+    $("#consent").hidden = login;
+    $("#pw").setAttribute("autocomplete", login ? "current-password" : "new-password");
+    $("#auth-switch").innerHTML = login
+      ? 'New to Artemis? <button type="button" data-auth="signup">Create an account</button>'
+      : 'Already have an account? <button type="button" data-auth="login">Log in</button>';
+    $("#auth").hidden = false;
+  }
+  const closeAuth = () => $("#auth").hidden = true;
+  $("#auth-close").addEventListener("click", closeAuth);
+  $("#auth").addEventListener("click", e => { if (e.target.id === "auth") closeAuth(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeAuth(); });
+  const signIn = e => { e.preventDefault(); closeAuth(); $("#signed-out").hidden = true; $("#signed-out").style.display = "none"; $("#signed-in").hidden = false; };
+  $("#google").addEventListener("click", signIn);
+  $("#auth-form").addEventListener("submit", signIn);
+  $("#sign-out").addEventListener("click", () => { $("#signed-in").hidden = true; $("#signed-out").hidden = false; $("#signed-out").style.display = "flex"; });
+
+  go((location.hash || "#scan").slice(1) in { scan: 1, result: 1, messages: 1, qr: 1, watch: 1, history: 1, developers: 1 } ? location.hash.slice(1) || "scan" : "scan");
+</script>
+</body>
+</html>

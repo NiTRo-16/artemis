@@ -1,0 +1,43 @@
+# Artemis-specific Semgrep rules. They mark places worth a second look; the AI step then decides
+# whether each one is a real problem in context. A match here is a question, not a verdict.
+rules:
+  - id: artemis-redirects-followed
+    languages: [python]
+    severity: WARNING
+    message: >-
+      This HTTP client follows redirects by itself. If the first address is checked for being public but
+      later hops aren't, a redirect can reach a private or internal address (SSRF).
+    pattern: httpx.AsyncClient(..., follow_redirects=True, ...)
+
+  - id: artemis-tls-verification-off
+    languages: [python]
+    severity: WARNING
+    message: >-
+      TLS certificate checks are turned off for this client. Make sure nothing it fetches is trusted or
+      sent anywhere that matters.
+    pattern: httpx.AsyncClient(..., verify=False, ...)
+
+  - id: artemis-sql-built-from-strings
+    languages: [python]
+    severity: ERROR
+    message: >-
+      This SQL statement is built from strings. If any part can come from a user, it allows SQL injection;
+      use ? placeholders instead.
+    pattern-either:
+      - pattern: $DB.execute(f"...", ...)
+      - pattern: $DB.execute("..." % $X, ...)
+      - pattern: $DB.execute("..." + $X, ...)
+      - pattern: $DB.execute($Q.format(...), ...)
+
+  - id: artemis-html-from-data
+    languages: [javascript]
+    severity: WARNING
+    message: >-
+      HTML is written from a value that isn't a fixed string. If it can contain text from a scanned site or
+      a user, it allows cross-site scripting unless every part is escaped first.
+    patterns:
+      - pattern-either:
+          - pattern: $EL.innerHTML = $X
+          - pattern: $EL.insertAdjacentHTML($POS, $X)
+      - pattern-not: $EL.innerHTML = "..."
+      - pattern-not: $EL.innerHTML = '...'
