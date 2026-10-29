@@ -10,6 +10,7 @@ import re
 import socket
 import ssl
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from urllib.parse import urljoin, urlsplit, urlunsplit
@@ -470,7 +471,31 @@ def visit_decision(host: str, https_page: Page | None, http_page: Page | None, t
     }
 
 
-async def scan(raw_domain: str) -> dict:
+Progress = Callable[[str, str], Awaitable[None]]
+IMPERSONATION_STATUS = {"official": "ok", "clear": "ok", "suspicious": "warn", "likely": "bad", "reported": "bad"}
+
+
+def _status(score: int) -> str:
+    return "ok" if score >= 80 else "warn" if score >= 50 else "bad"
+
+
+async def _emit(progress: Progress | None, step: str, status: str) -> None:
+    if progress is None:
+        return
+    try:
+        await progress(step, status)
+    except Exception:   # a lost progress message must never fail the scan itself
+        pass
+
+
+async def _step(progress: Progress | None, step: str, coro: Awaitable, status: Callable[[object], str]):
+    """Await one check and report it as soon as it finishes."""
+    result = await coro
+    await _emit(progress, step, status(result))
+    return result
+
+
+async def scan(raw_domain: str, progress: Progress | None = None) -> dict:
     started = time.monotonic()
     host = normalize_domain(raw_domain)
     path = requested_path(raw_domain)
@@ -479,7 +504,9 @@ async def scan(raw_domain: str) -> dict:
         addrs = await resolve_public(host)
     except Unresolvable:
         # Nothing to connect to, but the name, registration and blocklists can still be checked.
+        await _emit(progress, "resolve", "bad")
         impersonation = await check_impersonation(host, link)
+        await _emit(progress, "impersonation", IMPERSONATION_STATUS[impersonation["level"]])
         return {
             "domain": host,
             "resolves": False,
@@ -494,21 +521,24 @@ async def scan(raw_domain: str) -> dict:
             "visit": visit_decision(host, None, None, None, impersonation, None),
         }
     ip = next((a for a in addrs if ":" not in a), addrs[0])
+    await _emit(progress, "resolve", "ok")
 
     # Certificate trust is graded by check_tls; this client only reads headers, so a
     # broken certificate shouldn't stop the header, cookie and disclosure checks.
     # The page to inspect for a fake login form: the pasted link (fake login pages usually sit at a
     # specific path) or the homepage. It's rendered with its scripts in parallel with everything else.
     target = link or f"https://{host}/"
-    render_task = asyncio.create_task(render_page(target))
+    render_task = asyncio.create_task(_step(progress, "page", render_page(target),
+                                            lambda page: "done" if page is not None else "skipped"))
     try:
         async with httpx.AsyncClient(verify=False, timeout=TIMEOUT, headers={"User-Agent": USER_AGENT}) as client:
             tls, https_page, http_page, email, records = await asyncio.gather(
-                check_tls(host, ip),
+                _step(progress, "certificate", check_tls(host, ip), lambda c: _status(c.score)),
                 try_fetch(client, f"https://{host}/"),
                 try_fetch(client, f"http://{host}/"),
-                check_email(host),
-                lookup_records(host, link),
+                _step(progress, "email", check_email(host), lambda c: _status(c.score)),
+                _step(progress, "records", lookup_records(host, link),
+                      lambda rec: "bad" if any(e["status"] == "listed" for e in rec["lists"]) else "done"),
             )
             if path:
                 loaded = await try_fetch(client, f"https://{host}{path}") or await try_fetch(client, f"http://{host}{path}")
@@ -537,6 +567,7 @@ async def scan(raw_domain: str) -> dict:
     finally:
         render_task.cancel()   # no-op when finished; stops a render if the scan is cut short
     impersonation = assess(host, records, page_signals, page_facts)
+    await _emit(progress, "impersonation", IMPERSONATION_STATUS[impersonation["level"]])
 
     if http_page is not None and not http_page.url.startswith("https://"):
         tls.flag(25, "high", "HTTP does not redirect to HTTPS", f"http://{host}/",
