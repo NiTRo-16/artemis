@@ -31,11 +31,91 @@ services:
       # Optional "Continue with Google". Set both or neither.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      DATABASE_URL: postgresql://artemis:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/artemis
+      REDIS_URL: redis://redis:6379/0
+      RATE_LIMIT_SECRET: ${RATE_LIMIT_SECRET:?Set RATE_LIMIT_SECRET in .env}
     volumes:
-      - artemis_data:/app/data       # accounts and scan history; back this up
+      # The old SQLite database, read once by tools/migrate_sqlite.py. Accounts now live in Postgres.
+      - artemis_data:/app/data
     networks:
       - front
       - egress
+      - data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # Runs scans from the queue, each with its own sandboxed Chromium. More capacity:
+  #   docker compose up -d --scale worker=2
+  worker:
+    build: .
+    command: ["python", "worker.py"]
+    restart: unless-stopped
+    init: true                     # reaps Chromium's child processes
+    shm_size: "1gb"                # Chromium uses /dev/shm; Docker's 64 MB default crashes pages
+    mem_limit: 2g
+    pids_limit: 512
+    cap_drop: [ALL]
+    security_opt:
+      - seccomp=deploy/seccomp_profile.json
+      - no-new-privileges:true
+    environment:
+      DATABASE_URL: postgresql://artemis:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/artemis
+      REDIS_URL: redis://redis:6379/0
+      SAFE_BROWSING_API_KEY: ${SAFE_BROWSING_API_KEY:-}
+      URLHAUS_AUTH_KEY: ${URLHAUS_AUTH_KEY:-}
+      ARTEMIS_CHROMIUM_SANDBOX: ${ARTEMIS_CHROMIUM_SANDBOX:-1}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+    healthcheck:
+      disable: true                # the app's /healthz reports whether a worker is alive
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - egress
+      - data
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  redis:
+    image: redis:7.4
+    # Memory only, never written to disk: rate-limit keys stand for visitors' networks.
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "512mb", "--maxmemory-policy", "volatile-lru"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - data
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: artemis
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: artemis
+    volumes:
+      - pg_data:/var/lib/postgresql/data   # accounts, history, reports and shared results; back this up
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "artemis"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - data
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
@@ -89,9 +169,12 @@ networks:
       config:
         - subnet: 172.30.0.0/24
   public: {}
+  data:
+    internal: true                   # app, worker, Redis and Postgres only; no internet access
 
 volumes:
   artemis_data:
+  pg_data:
   caddy_data:
   caddy_config:
   caddy_logs:

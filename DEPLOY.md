@@ -28,6 +28,9 @@ internet.
    DKIM DNS records your provider gives you, or the emails will land in spam. Without `SMTP_HOST` the
    deployment refuses to start, since nobody could confirm an account.
 
+   Set `POSTGRES_PASSWORD` and `RATE_LIMIT_SECRET` to two different random values
+   (`openssl rand -hex 32` makes one).
+
    Optional: to offer "Continue with Google", create a Google OAuth client (see
    [Google sign-in](#google-sign-in) below) and put its ID and secret in `GOOGLE_CLIENT_ID` and
    `GOOGLE_CLIENT_SECRET`. Leave both empty and the button doesn't appear.
@@ -81,9 +84,9 @@ internet.
 ## Check it works
 
 ```bash
-docker compose ps                          # app should show "healthy"
-curl https://YOUR-DOMAIN/healthz           # {"status":"ok"}
-docker compose logs app | grep self-test   # "Headless browser self-test passed"
+docker compose ps                          # app (healthy), worker, redis, postgres and caddy running
+curl https://YOUR-DOMAIN/healthz           # {"status":"ok"}: database, Redis and a working scan worker
+docker compose logs worker | grep ready    # "Worker ... ready, 4 scans at once"
 ```
 
 Then open `https://YOUR-DOMAIN`, scan a site, and scan a link to confirm the page check runs.
@@ -93,7 +96,7 @@ Sign up with your own address to check the confirmation email arrives and its li
 To confirm the firewall, this must fail (time out or be refused):
 
 ```bash
-docker compose exec app python -c "import urllib.request; urllib.request.urlopen('http://169.254.169.254/', timeout=3)"
+docker compose exec worker python -c "import urllib.request; urllib.request.urlopen('http://169.254.169.254/', timeout=3)"
 ```
 
 ## Google sign-in
@@ -135,24 +138,48 @@ docker compose exec app python reports.py done example.com
 
 `python reports.py --all` also shows reviewed ones. Reports are deleted after a year.
 
+## Moving from SQLite to Postgres
+
+Versions before the scan queue kept accounts in an SQLite file. To move them across, once:
+
+```bash
+sudo git pull
+# add POSTGRES_PASSWORD and RATE_LIMIT_SECRET to .env (see .env.example)
+sudo docker compose build
+sudo docker compose up -d postgres redis
+sudo docker compose run --rm --no-deps app python tools/migrate_sqlite.py /app/data/artemis.db
+sudo docker compose up -d
+```
+
+The copy refuses to run twice. The old SQLite file stays in the `artemis_data` volume as a backup.
+
+## Adding scan capacity
+
+Each worker runs `WORKER_CONCURRENCY` scans at once (4 by default), each with its own sandboxed browser.
+Add workers with:
+
+```bash
+docker compose up -d --scale worker=2
+```
+
 ## Updating
 
-Copy the new files over the old ones, then:
+Copy the new files over the old ones (or `git pull`), then:
 
 ```bash
 docker compose up -d --build
 ```
 
-The certificates live in the `caddy_data` volume and the accounts database in `artemis_data`. Both survive
+The certificates live in the `caddy_data` volume and the accounts database in `pg_data`. Both survive
 rebuilds. Don't delete them.
 
 ## Backups
 
-`artemis_data` holds user accounts, settings, scan history and site reports. Back it up regularly, for example daily:
+`pg_data` holds user accounts, settings, scan history, site reports and shared results. Back it up
+regularly, for example daily:
 
 ```bash
-docker compose exec app python -c "import sqlite3; sqlite3.connect('/app/data/artemis.db').backup(sqlite3.connect('/app/data/backup.db'))"
-docker compose cp app:/app/data/backup.db ./artemis-backup-$(date +%F).db
+docker compose exec -T postgres pg_dump -U artemis artemis | gzip > artemis-backup-$(date +%F).sql.gz
 ```
 
 The backup contains email addresses and password hashes: store it somewhere private.

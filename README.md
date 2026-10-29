@@ -103,12 +103,16 @@ Or do it by hand:
 ```bash
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 python -m playwright install chromium
+docker compose -f docker-compose.dev.yml up -d     # Redis and Postgres on this computer
+(cd web && npm install && npm run build)           # the front end
+python worker.py &                                 # runs the scans
 uvicorn main:app --port 8000
 ```
 
-Open http://localhost:8000. Locally, account emails (confirmation and reset links) are printed to the
+Open http://localhost:8000. To work on the front end with instant reloads, run `npm run dev` in `web/`
+and open http://localhost:5173 instead; it forwards API calls to port 8000. Locally, account emails (confirmation and reset links) are printed to the
 server log instead of being sent, so sign-up works without an email provider.
 
 To try the payment check, scan `upi://pay?pa=support.refund@ybl&pn=Customer%20Care&tn=Refund`. To try
@@ -127,7 +131,11 @@ Set these as environment variables. All are optional for local use.
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Enables "Continue with Google". Set both or neither; the button is hidden without them. See DEPLOY.md |
 | `SAFE_BROWSING_API_KEY` | Enables Google Safe Browsing lookups |
 | `URLHAUS_AUTH_KEY` | Enables abuse.ch URLhaus lookups |
-| `ARTEMIS_DB` | Path to the SQLite database of accounts and site reports. Defaults to `data/artemis.db` |
+| `DATABASE_URL` | Postgres for accounts, history, reports and shared results. Defaults to the one in `docker-compose.dev.yml` |
+| `REDIS_URL` | Redis for the scan queue, live progress, caches and rate limits. Defaults to `redis://127.0.0.1:6379/0` |
+| `RATE_LIMIT_SECRET` | Key for the one-way codes that rate limits store instead of IP addresses. Required on a server |
+| `WORKER_CONCURRENCY` | Scans each worker runs at once. Defaults to 4 |
+| `ARTEMIS_INLINE_SCANS` | `1` runs scans inside the web server instead of a worker (used by the tests) |
 | `ARTEMIS_CHROMIUM_SANDBOX` | Leave at `1`. See DEPLOY.md before changing it |
 
 On a public domain the server refuses to report healthy without `SMTP_HOST`, since nobody could confirm
@@ -144,17 +152,21 @@ to `.env` to start.
 
 | Path | What it does |
 |---|---|
-| `main.py` | Web server: pages, scan API, accounts, rate limits, security headers |
+| `main.py` | Web server: pages, scan API (queued jobs, live progress, sharing), accounts, security headers |
+| `jobs.py`, `worker.py` | The scan queue on Redis, and the worker processes that run scans |
+| `store.py`, `ratelimit.py` | Redis connections, and rate limits shared by every process |
 | `scanner.py` | Security checks and the risk score |
 | `impersonation.py`, `brands.py` | Lookalike names, registration and certificate records, phishing lists |
 | `clone.py` | Fake login page detection |
 | `payments.py` | UPI link and payment page checks |
 | `render.py` | Sandboxed headless browser for pages built by JavaScript |
 | `netsafety.py` | The rule for which addresses Artemis may connect to (public only) |
-| `db.py`, `mail.py` | Accounts database and account emails |
+| `db.py`, `migrations/`, `mail.py` | Postgres storage and its schema, and account emails |
+| `tools/migrate_sqlite.py` | One-off copy of an older SQLite database into Postgres |
+| `ml/` | The URL model: features, training and scoring |
 | `google_auth.py` | Google sign-in |
 | `reports.py` | Command-line tool for reviewing site reports |
-| `index.html`, `app.js`, `theme.js` | The website |
+| `web/` | The website: React and TypeScript, built with Vite |
 | `privacy.html`, `terms.html` | Privacy policy and terms |
 | `extension/` | Chrome extension |
 | `deploy/`, `Dockerfile`, `docker-compose.yml` | Deployment |
