@@ -95,6 +95,9 @@ async def security_headers(request: Request, call_next):
         response.headers.setdefault(name, value)
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"   # account data and results never go in a shared cache
+    elif request.url.path.startswith("/assets/") and response.status_code == 200:
+        # Built files have a hash of their content in the name, so a new build always has new names.
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
 
 
@@ -684,39 +687,50 @@ async def quick_check(body: CheckRequest, request: Request) -> dict:
 
 # ---------- pages and files ----------
 
-PAGES = {
-    "/": "index.html",
-    "/verify": "index.html",     # email links open the page; the token is after "#"
-    "/reset": "index.html",
-    "/app.js": "app.js",
-    "/theme.js": "theme.js",
-    "/privacy": "privacy.html",
-    "/terms": "terms.html",
-    "/favicon.svg": "favicon.svg",
-    "/legal.css": "legal.css",
+WEB = ROOT / "web" / "dist"   # the React app, built by `npm run build` in web/
+
+# Paths the app handles itself; each gets the app's index.html. (/verify and /reset are email links:
+# the token is after "#", so it never reaches the server.)
+APP_PAGES = ["/", "/verify", "/reset", "/history", "/messages", "/qr", "/watch", "/developers"]
+FILES = {
+    "/theme.js": WEB / "theme.js",
+    "/favicon.svg": WEB / "favicon.svg",
+    "/privacy": ROOT / "privacy.html",
+    "/terms": ROOT / "terms.html",
+    "/legal.css": ROOT / "legal.css",
 }
 
 
-def _serve(filename: str):
+def _serve(path: Path):
     # Tell browsers not to reuse a stored copy without checking, so visitors never run an outdated page.
     # (FileResponse sends the full file each time; pages are small, so that's fine.)
-    return lambda: FileResponse(ROOT / filename, headers={"Cache-Control": "no-cache"})
+    return lambda: FileResponse(path, headers={"Cache-Control": "no-cache"})
 
 
 # Windows reads these from the registry, which may lack or mislabel them; set them explicitly.
 mimetypes.add_type("font/woff2", ".woff2")
 mimetypes.add_type("text/javascript", ".js")
 
-for route, filename in PAGES.items():
-    app.add_api_route(route, _serve(filename), methods=["GET"], include_in_schema=False)
+for route in APP_PAGES:
+    app.add_api_route(route, _serve(WEB / "index.html"), methods=["GET"], include_in_schema=False)
+for route, path in FILES.items():
+    app.add_api_route(route, _serve(path), methods=["GET"], include_in_schema=False)
 
-app.mount("/fonts", StaticFiles(directory=ROOT / "fonts"), name="fonts")
+
+@app.get("/scan/{job_id}", include_in_schema=False)
+async def result_page(job_id: str) -> FileResponse:
+    return FileResponse(WEB / "index.html", headers={"Cache-Control": "no-cache"})
+
+
+# The app's scripts, styles and fonts. Their names contain a hash of their content, so they can be cached for good.
+app.mount("/assets", StaticFiles(directory=WEB / "assets", check_dir=False), name="assets")
+app.mount("/fonts", StaticFiles(directory=ROOT / "fonts"), name="fonts")   # used by the privacy and terms pages
 
 
 @app.get("/r/{job_id}", include_in_schema=False)
 async def shared_page(job_id: str) -> FileResponse:
     # A shared result. The page loads the result itself from /api/shared/<id>.
-    return FileResponse(ROOT / "index.html", headers={"Cache-Control": "no-cache"})
+    return FileResponse(WEB / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/healthz", include_in_schema=False)

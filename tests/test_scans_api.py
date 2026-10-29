@@ -68,6 +68,15 @@ with TestClient(main.app, base_url="http://testserver") as c:
     ok("the old endpoint still returns the report directly",
        old.status_code == 200 and old.json()["domain"] == "site-two.example")
 
+    app_routes = ["/", "/verify", "/reset", "/history", "/messages", "/qr", "/watch", "/developers", f"/scan/{job_id}"]
+    pages = [c.get(p) for p in app_routes]
+    ok("every app route returns the app", all(p.status_code == 200 and '<div id="root">' in p.text for p in pages))
+    asset = next(part.split('"')[0] for part in pages[0].text.split('src="')[1:] if part.startswith("/assets/"))
+    ok("built assets load and are cached for good",
+       c.get(asset).headers.get("cache-control") == "public, max-age=31536000, immutable")
+    ok("the legal pages are unchanged", "Privacy" in c.get("/privacy").text and c.get("/legal.css").status_code == 200)
+    ok("API paths still answer with JSON", c.get("/api/me").headers["content-type"].startswith("application/json"))
+
     jobs.MAX_QUEUED = 0
     ok("a full queue answers 503", c.post("/api/scans", json={"target": "site-three.example"}).status_code == 503)
     jobs.MAX_QUEUED = 200

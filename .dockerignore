@@ -14,3 +14,5 @@ ai_review/
 mockup/
 evaluation/
 tests/
+web/node_modules/
+web/dist/

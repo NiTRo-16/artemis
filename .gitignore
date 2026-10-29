@@ -20,3 +20,7 @@ ai_review/out/
 
 # ML training data (downloaded datasets) and local experiments
 ml/data/
+
+# Front end: installed packages and build output
+web/node_modules/
+web/dist/
