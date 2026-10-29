@@ -70,7 +70,7 @@ export function Frame({ children }: { children: ReactNode }) {
       </header>
       <main className="main">{children}</main>
       <footer className="footer">
-        <span>Artemis · Team Artemis, IPS Academy Indore</span>
+        <span>Artemis</span>
         <nav><a href="/privacy">Privacy policy</a><a href="/terms">Terms and conditions</a></nav>
       </footer>
     </div>
