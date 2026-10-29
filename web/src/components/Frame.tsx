@@ -1,7 +1,8 @@
 // The portfolio-style frame: header with the logo, then the tools, then account controls; and the footer.
-import { useState, type ReactNode } from "react";
-import { NavLink, Link, useLocation } from "react-router";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { NavLink, Link, useLocation, useNavigate } from "react-router";
 import { useAccount } from "../account";
+import * as backend from "../api";
 import { Icon } from "./ui";
 
 export const TOOLS = [
@@ -48,9 +49,7 @@ export function Frame({ children }: { children: ReactNode }) {
         <div className="account">
           <button className="icon-btn" type="button" aria-label="Settings" onClick={() => setSettingsOpen(true)}><Icon name="gear" /></button>
           {account ? (
-            <button className="user-chip" type="button" onClick={() => setSettingsOpen(true)} title="Account and settings">
-              <span className="avatar">{account.email.slice(0, 1).toUpperCase()}</span><span className="user-email">{account.email}</span>
-            </button>
+            <AccountMenu />
           ) : (
             <>
               <button className="btn btn-ghost hide-small" type="button" onClick={() => openAuth("login")}>Log in</button>
@@ -73,6 +72,49 @@ export function Frame({ children }: { children: ReactNode }) {
         <span>Artemis</span>
         <nav><a href="/privacy">Privacy policy</a><a href="/terms">Terms and conditions</a></nav>
       </footer>
+    </div>
+  );
+}
+
+/** The signed-in chip in the header, and the menu it opens. */
+function AccountMenu() {
+  const { account, setAccount, setSettingsOpen } = useAccount();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const escape = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", outside);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("mousedown", outside); document.removeEventListener("keydown", escape); };
+  }, [open]);
+
+  if (!account) return null;
+  const initial = account.email.slice(0, 1).toUpperCase();
+  async function signOut() {
+    setOpen(false);
+    try { await backend.logout(); } catch { /* signed out here regardless */ }
+    setAccount(null);
+  }
+  return (
+    <div className="account-menu" ref={box}>
+      <button className="user-chip" type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span className="avatar">{initial}</span><span className="user-email">{account.email}</span>
+      </button>
+      {open && (
+        <div className="menu-panel" role="menu">
+          <div className="menu-head"><span className="avatar">{initial}</span><div><b>Signed in</b><span>{account.email}</span></div></div>
+          <button className="menu-item" role="menuitem" type="button" onClick={() => { setOpen(false); navigate("/history"); }}>
+            <Icon name="history" />Scan history</button>
+          <button className="menu-item" role="menuitem" type="button" onClick={() => { setOpen(false); setSettingsOpen(true); }}>
+            <Icon name="gear" />Settings</button>
+          <div className="menu-sep" />
+          <button className="menu-item" role="menuitem" type="button" onClick={signOut}><Icon name="signout" />Sign out</button>
+        </div>
+      )}
     </div>
   );
 }

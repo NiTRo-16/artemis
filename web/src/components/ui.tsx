@@ -21,15 +21,35 @@ const ICONS: Record<string, ReactNode> = {
   flag: <path d="M5 21V4M5 4h11l-2 4 2 4H5" />,
   gear: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></>,
   out: <path d="M9 6H5v13h13v-4M13 4h7v7M20 4l-9 9" />,
+  mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3.5 7l8.5 6 8.5-6" /></>,
+  lock: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>,
+  sync: <><path d="M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3" /><path d="M18 3v4h-4M6 21v-4h4" /></>,
+  speed: <><path d="M4 18a8 8 0 1 1 16 0" /><path d="M12 18l4-6" /></>,
+  check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  back: <path d="M15 6l-6 6 6 6" />,
+  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
+  globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></>,
+  user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
+  shield: <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />,
+  trash: <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />,
+  signout: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />,
 };
+
+export function Logo({ size = 26 }: { size?: number }) {
+  return (
+    <svg className="logo-mark" width={size} height={size} viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="11.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M13 13 L21.2 4.8" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="13" cy="13" r="2.2" fill="var(--accent)" />
+    </svg>
+  );
+}
 
 export function Icon({ name, className = "icon" }: { name: keyof typeof ICONS | string; className?: string }) {
   return <svg className={className} viewBox="0 0 24 24" aria-hidden="true">{ICONS[name]}</svg>;
 }
 
-/** A modal built on <dialog>: closes on Escape, on the backdrop and on the Close button. */
-export function Dialog({ open, onClose, title, children, wide = false }:
-  { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
+function useModal(open: boolean) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -37,6 +57,28 @@ export function Dialog({ open, onClose, title, children, wide = false }:
     if (open && !d.open) d.showModal();
     if (!open && d.open) d.close();
   }, [open]);
+  return ref;
+}
+
+/** A frosted-glass modal for the account screens, laid out by its children. Same closing rules as Dialog. */
+export function GlassDialog({ open, onClose, label, className, children }:
+  { open: boolean; onClose: () => void; label: string; className: string; children: ReactNode }) {
+  const ref = useModal(open);
+  return (
+    <dialog ref={ref} className={`glass-dialog ${className}`} aria-label={label} onClose={onClose}
+      onClick={(e) => { if (e.target === ref.current) onClose(); }}>
+      {open && <>
+        <button className="glass-close" type="button" aria-label="Close" onClick={onClose}><Icon name="x" /></button>
+        {children}
+      </>}
+    </dialog>
+  );
+}
+
+/** A modal built on <dialog>: closes on Escape, on the backdrop and on the Close button. */
+export function Dialog({ open, onClose, title, children, wide = false }:
+  { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
+  const ref = useModal(open);
   return (
     <dialog ref={ref} className={`dialog${wide ? " wide" : ""}`} aria-label={title} onClose={onClose}
       onClick={(e) => { if (e.target === ref.current) onClose(); }}>
