@@ -33,6 +33,7 @@ async def main():
     events = [e async for e in jobs.events(r, job_id, timeout=2)]
     ok("events replay in order and end with done", [e["type"] for e in events] == ["step", "done"])
     ok("state holds the report", (await jobs.state(r, job_id))["report"] == {"domain": "example.com"})
+    ok("past events can be read without waiting", [e["type"] for e in await jobs.past_events(r, job_id)] == ["step", "done"])
     ok("acknowledged jobs leave the queue", await r.xlen(jobs.QUEUE) == 0)
 
     again, cached = await jobs.submit(r, "example.com", key, None)

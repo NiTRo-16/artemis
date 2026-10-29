@@ -145,6 +145,11 @@ async def events(r, job_id: str, timeout: float = 120.0) -> AsyncIterator[dict]:
                 return
 
 
+async def past_events(r, job_id: str) -> list[dict]:
+    """Every event recorded so far, without waiting (empty once the progress stream has expired)."""
+    return [json.loads(fields["data"]) for _, fields in await r.xrange(_events(job_id))]
+
+
 async def heartbeat(r, worker_id: str, renderer_error: str | None) -> None:
     await r.set(f"workers:{worker_id}", json.dumps({"renderer_error": renderer_error}), ex=HEARTBEAT_SECONDS)
 

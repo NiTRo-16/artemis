@@ -87,18 +87,12 @@ with TestClient(main.app, base_url="http://testserver") as c:
              for i in range(7)]
     ok(f"signup limited to 5 per network per hour ({codes})", codes[:5] == [200] * 5 and codes[5] == 429)
 
-    # --- fix: global scan concurrency ---
-    async def fill():
-        for _ in range(main.MAX_CONCURRENT_SCANS):
-            await main.scan_slots.acquire()
-    c.portal.call(fill)
+    # --- a full queue refuses new scans ---
+    import jobs  # noqa: E402
     main.scan_limiter.reset()
-    ok("scans refused with 503 when all slots are busy", c.post("/api/scan", json={"domain": "example.com"}).status_code == 503)
-
-    async def drain():
-        for _ in range(main.MAX_CONCURRENT_SCANS):
-            main.scan_slots.release()
-    c.portal.call(drain)
+    jobs.MAX_QUEUED = 0
+    ok("scans refused with 503 when the queue is full", c.post("/api/scan", json={"domain": "example.org"}).status_code == 503)
+    jobs.MAX_QUEUED = 200
 
 # --- fix: IPv6 /64 treated as one visitor ---
 def req(ip):

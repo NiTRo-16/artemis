@@ -12,7 +12,7 @@ import weakref
 import redis
 import redis.asyncio
 
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
 _sync: redis.Redis | None = None
 _async: "weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, redis.asyncio.Redis]" = weakref.WeakKeyDictionary()
 _fake_server = None

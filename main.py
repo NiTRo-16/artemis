@@ -5,39 +5,42 @@ import ipaddress
 import json
 import logging
 import mimetypes
+import os
 import re
 import time
-from collections import OrderedDict
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import db
 import google_auth
+import jobs
 import mail
 import render
+import store
 from impersonation import check_impersonation
 from payments import UPI_ID, is_upi, parse_upi, upi_report
 from ratelimit import RateLimiter
-from scanner import ScanError, normalize_domain, scan
+from scanner import ScanError, normalize_domain, requested_path
+from worker import record_history, run_job
 
 ROOT = Path(__file__).parent
-SCAN_TIMEOUT = 30.0
+WAIT_FOR_SCAN = 50.0              # POST /api/scan waits this long for its job (the job itself stops at 45 s)
 CHECK_TIMEOUT = 20.0
 CHECK_CACHE_SECONDS = 6 * 3600
-CHECK_CACHE_SIZE = 10_000
 SESSION_COOKIE = "artemis_session"
 OAUTH_COOKIE = "artemis_oauth"      # ties a Google sign-in to the browser that started it
 MAX_BODY_BYTES = 64 * 1024        # largest accepted request body; every API body is tiny
-MAX_CONCURRENT_SCANS = 8          # full scans at once, across all visitors
 MAX_CONCURRENT_CHECKS = 16        # extension checks at once
 RECENT_SIGNIN_SECONDS = 15 * 60   # accounts without a password must have signed in this recently to delete
+INLINE_SCANS = os.environ.get("ARTEMIS_INLINE_SCANS") == "1"   # run jobs in this process (tests, local dev without a worker)
+JOB_ID = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
 CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")   # all but tab and newline
 
@@ -63,22 +66,23 @@ log = logging.getLogger("artemis")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    db.init()   # create the database and tables before the first request
-    # Check the sandboxed browser once at startup so a broken deployment shows up in logs and /healthz
-    # instead of silently skipping the script-built form check on every scan.
+    db.init()   # apply database migrations before the first request
+    await jobs.ensure_group(store.async_client())
     app.state.mail_error = mail.config_problem() or google_auth.config_problem()
     if app.state.mail_error:
         log.error("Account email is not configured: %s", app.state.mail_error)
     elif not mail.SMTP_HOST:
         log.warning("No SMTP_HOST: account emails are printed to this log instead of sent (local development).")
-    app.state.renderer_error = await render.self_test()
+    # Scans run in the worker processes, which check the sandboxed browser themselves. Only in inline mode
+    # does this process run scans, and so need the browser check here.
+    app.state.renderer_error = await render.self_test() if INLINE_SCANS else None
     if app.state.renderer_error:
         # Details go to the log only; /healthz is public and just reports "degraded".
         log.error("Headless browser self-test failed: %s", app.state.renderer_error)
-    else:
-        log.info("Headless browser self-test passed")
+    app.state.inline_jobs = set()
     yield
-    await render.shutdown()   # close the headless browser with the server
+    if INLINE_SCANS:
+        await render.shutdown()   # close the headless browser with the server
 
 
 app = FastAPI(title="Artemis", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -164,7 +168,6 @@ email_limiter = RateLimiter("email", 3600.0)        # 3 account emails an hour t
 report_limiter = RateLimiter("report", 3600.0)      # 10 site reports an hour per network
 repeat_report_limiter = RateLimiter("repeat_report", 86400.0)   # one report a day per site per network; repeats aren't counted
 share_limiter = RateLimiter("share", 3600.0)        # 30 shared results an hour per network
-scan_slots = asyncio.Semaphore(MAX_CONCURRENT_SCANS)
 check_slots = asyncio.Semaphore(MAX_CONCURRENT_CHECKS)
 
 
@@ -464,35 +467,149 @@ class ScanRequest(BaseModel):
     domain: str = Field(min_length=1, max_length=2048)   # a domain or a full link
 
 
-@app.post("/api/scan")
-async def run_scan(body: ScanRequest, request: Request) -> dict:
-    user = current_user(request)
+class ScanJobRequest(BaseModel):
+    target: str = Field(min_length=1, max_length=2048)   # a domain, a full link or a UPI payment link
+
+
+def limit_scans(request: Request, user) -> None:
     if user:
         # Per account, and per network so several accounts on one connection can't multiply the limit.
         scan_limiter.check(f"user:{user['id']}", 30, "Too many scans. Try again in a minute.")
         scan_limiter.check(f"net:{client_key(request)}", 60, "Too many scans from your network. Try again in a minute.")
     else:
         scan_limiter.check(client_key(request), 10, "Too many scans. Try again in a minute, or sign in for a higher limit.")
-    if is_upi(body.domain):
-        try:
-            report = upi_report(body.domain)   # read from the link itself; nothing is fetched
-        except ValueError as exc:
-            raise HTTPException(400, str(exc))
-    else:
-        if scan_slots.locked():
-            raise HTTPException(503, "Artemis is busy right now. Try again in a moment.")
-        try:
-            async with scan_slots:
-                report = await asyncio.wait_for(scan(body.domain), SCAN_TIMEOUT)
-        except ScanError as exc:
-            raise HTTPException(400, str(exc))
-        except asyncio.TimeoutError:
-            raise HTTPException(504, "The scan timed out.")
+
+
+def check_upi(raw: str, user) -> dict:
+    """A UPI link is read from the link itself (nothing is fetched), so it's answered straight away."""
+    try:
+        report = upi_report(raw)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
     if user:
-        risk = report["risk"]
-        verdict = (report.get("impersonation") or report["payment"])["verdict"]
-        db.add_scan(user["id"], body.domain.strip(), risk and risk["score"], risk and risk["label"], verdict)
+        record_history(user["id"], raw.strip(), report)
     return report
+
+
+async def submit_scan(raw: str, user) -> tuple[str, bool]:
+    """Queue a website scan, or find a recent result for it. Returns (job id, was cached)."""
+    try:
+        host, path = normalize_domain(raw), requested_path(raw)
+    except ScanError as exc:
+        raise HTTPException(400, str(exc))
+    r = store.async_client()
+    try:
+        job_id, cached = await jobs.submit(r, raw.strip(), jobs.cache_key(host, path), user["id"] if user else None)
+    except jobs.QueueFull:
+        raise HTTPException(503, "Artemis is busy right now. Try again in a moment.")
+    if cached and user:
+        state = await jobs.state(r, job_id)
+        await asyncio.to_thread(record_history, user["id"], raw.strip(), state["report"])
+    if not cached and INLINE_SCANS:
+        task = asyncio.create_task(run_inline(r))
+        app.state.inline_jobs.add(task)
+        task.add_done_callback(app.state.inline_jobs.discard)
+    return job_id, cached
+
+
+async def run_inline(r) -> None:
+    """Inline mode: take the next job from the queue and run it in this process, as a worker would."""
+    claimed = await jobs.claim(r, "inline", block_ms=None)
+    if claimed is not None:
+        entry_id, fields = claimed
+        try:
+            await run_job(r, fields["job"], fields)
+        finally:
+            await jobs.ack(r, entry_id)
+
+
+async def job_state(job_id: str) -> dict:
+    state = await jobs.state(store.async_client(), job_id) if JOB_ID.match(job_id) else None
+    if state is None:
+        raise HTTPException(404, "No such scan, or it has expired.")
+    return state
+
+
+def final_event(state: dict | None) -> dict:
+    if state is not None and state["status"] == "done":
+        return {"type": "done", "report": state["report"]}
+    if state is not None and state["status"] == "error":
+        return {"type": "error", "message": state["error"], "code": state["code"]}
+    return {"type": "error", "message": "The scan result has expired.", "code": 410}
+
+
+@app.post("/api/scans")
+async def start_scan(body: ScanJobRequest, request: Request) -> JSONResponse:
+    user = current_user(request)
+    limit_scans(request, user)
+    if is_upi(body.target):
+        return JSONResponse({"id": None, "status": "done", "report": check_upi(body.target, user)})
+    job_id, cached = await submit_scan(body.target, user)
+    return JSONResponse({"id": job_id, "status": "done" if cached else "queued"}, status_code=200 if cached else 202)
+
+
+@app.get("/api/scans/{job_id}")
+async def get_scan(job_id: str) -> dict:
+    return await job_state(job_id)
+
+
+@app.get("/api/scans/{job_id}/events")
+async def scan_events(job_id: str) -> StreamingResponse:
+    """Live progress as server-sent events, ending with the report or an error."""
+    state = await job_state(job_id)
+    r = store.async_client()
+
+    async def stream():
+        if state["status"] in ("done", "error"):   # finished already: replay its steps, then the result
+            for event in await jobs.past_events(r, job_id):
+                if event["type"] == "step":
+                    yield f"data: {json.dumps(event)}\n\n"
+            yield f"data: {json.dumps(final_event(state))}\n\n"
+            return
+        async for event in jobs.events(r, job_id):
+            if event["type"] in ("done", "error"):
+                event = final_event(await jobs.state(r, job_id))
+            yield f"data: {json.dumps(event)}\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"})
+
+
+@app.post("/api/scans/{job_id}/share")
+async def share_scan(job_id: str, request: Request) -> dict:
+    share_limiter.check(client_key(request), 30, "Too many shared results from your network. Try again later.")
+    state = await job_state(job_id)
+    if state["status"] != "done":
+        raise HTTPException(404, "Only a finished scan can be shared.")
+    await asyncio.to_thread(db.share_result, job_id, state["report"])
+    return {"url": f"/r/{job_id}"}
+
+
+@app.get("/api/shared/{job_id}")
+async def get_shared(job_id: str) -> dict:
+    report = await asyncio.to_thread(db.shared_result, job_id) if JOB_ID.match(job_id) else None
+    if report is None:
+        raise HTTPException(404, "This shared result doesn't exist or has expired.")
+    return report
+
+
+@app.post("/api/scan")
+async def run_scan(body: ScanRequest, request: Request) -> dict:
+    """The original endpoint: queues the scan and waits for it, so the current page works unchanged."""
+    user = current_user(request)
+    limit_scans(request, user)
+    if is_upi(body.domain):
+        return check_upi(body.domain, user)
+    job_id, _ = await submit_scan(body.domain, user)
+    r = store.async_client()
+    deadline = time.monotonic() + WAIT_FOR_SCAN
+    while time.monotonic() < deadline:
+        state = await jobs.state(r, job_id)
+        if state and state["status"] == "done":
+            return state["report"]
+        if state and state["status"] == "error":
+            raise HTTPException(state["code"], state["error"])
+        await asyncio.sleep(0.25)
+    raise HTTPException(504, "The scan timed out.")
 
 
 # ---------- site reports ----------
@@ -535,9 +652,6 @@ class CheckRequest(BaseModel):
     domain: str = Field(min_length=1, max_length=253)
 
 
-_check_cache: OrderedDict[str, tuple[float, dict]] = OrderedDict()
-
-
 @app.post("/api/check")
 async def quick_check(body: CheckRequest, request: Request) -> dict:
     """Domain-only impersonation verdict for the browser extension: no page is loaded, results are cached."""
@@ -546,9 +660,10 @@ async def quick_check(body: CheckRequest, request: Request) -> dict:
         host = normalize_domain(body.domain)
     except ScanError as exc:
         raise HTTPException(400, str(exc))
-    cached = _check_cache.get(host)
-    if cached and time.monotonic() - cached[0] < CHECK_CACHE_SECONDS:
-        return cached[1]
+    r = store.async_client()
+    cached = await r.get(f"check:{host}")   # shared by every API process
+    if cached:
+        return json.loads(cached)
     if check_slots.locked():
         raise HTTPException(503, "Artemis is busy right now. Try again in a moment.")
     try:
@@ -563,10 +678,7 @@ async def quick_check(body: CheckRequest, request: Request) -> dict:
         "summary": imp["summary"],
         "warnings": [s["text"] for s in imp["signals"] if s["tone"] in ("red", "amber")][:5],
     }
-    _check_cache[host] = (time.monotonic(), result)
-    _check_cache.move_to_end(host)
-    while len(_check_cache) > CHECK_CACHE_SIZE:
-        _check_cache.popitem(last=False)
+    await r.set(f"check:{host}", json.dumps(result), ex=CHECK_CACHE_SECONDS)
     return result
 
 
@@ -601,9 +713,23 @@ for route, filename in PAGES.items():
 app.mount("/fonts", StaticFiles(directory=ROOT / "fonts"), name="fonts")
 
 
+@app.get("/r/{job_id}", include_in_schema=False)
+async def shared_page(job_id: str) -> FileResponse:
+    # A shared result. The page loads the result itself from /api/shared/<id>.
+    return FileResponse(ROOT / "index.html", headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/healthz", include_in_schema=False)
 async def healthz(request: Request) -> JSONResponse:
-    """200 when the server, its sandboxed browser and its email settings work; 503 otherwise.
-    The reason is in the server log, not here: this endpoint is public."""
-    healthy = not request.app.state.renderer_error and not request.app.state.mail_error
+    """200 when the database, Redis, a scan worker (or, inline, this process's browser) and email settings
+    work; 503 otherwise. The reason is in the server log, not here: this endpoint is public."""
+    try:
+        r = store.async_client()
+        await r.ping()
+        scanning = not request.app.state.renderer_error if INLINE_SCANS else await jobs.healthy_workers(r) > 0
+        database = await asyncio.to_thread(db.ping)
+    except Exception:
+        log.exception("Health check failed")
+        scanning = database = False
+    healthy = scanning and database and not request.app.state.mail_error
     return JSONResponse({"status": "ok" if healthy else "degraded"}, status_code=200 if healthy else 503)

@@ -7,6 +7,7 @@ import os
 os.environ.setdefault("DATABASE_URL", "postgresql://artemis:artemis@127.0.0.1:5432/artemis_test")
 os.environ.setdefault("REDIS_URL", "fake://")
 os.environ.setdefault("RATE_LIMIT_SECRET", "test-secret")
+os.environ.setdefault("ARTEMIS_INLINE_SCANS", "1")   # jobs run inside the API process; no separate worker
 
 import db  # noqa: E402
 
