@@ -1487,7 +1487,7 @@ Expected: `13/13 passed`. If `xautoclaim` is missing from the installed fakeredi
 
 - [ ] **Step 5: Run the same test against the real Redis**
 
-Run: `REDIS_URL=redis://localhost:6379/15 PYTHONPATH=. .venv/Scripts/python tests/test_jobs.py`
+Run: `REDIS_URL=redis://127.0.0.1:6379/15 PYTHONPATH=. .venv/Scripts/python tests/test_jobs.py`
 Expected: `13/13 passed` (database 15 is flushed by the test, so the development data in database 0 is untouched).
 
 - [ ] **Step 6: Commit**
