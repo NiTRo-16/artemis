@@ -6,6 +6,7 @@ database can't be used to sign in. The schema lives in migrations/ and init() ap
 """
 from __future__ import annotations
 
+import atexit
 import hashlib
 import hmac
 import json
@@ -48,6 +49,7 @@ def pool() -> ConnectionPool:
             # through Docker Desktop's IPv6 relay) hangs the pool instead of failing.
             _pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=POOL_SIZE, open=True,
                                    kwargs={"row_factory": dict_row, "autocommit": True, "connect_timeout": 5})
+            atexit.register(_pool.close)   # otherwise exit waits for the pool's threads and warns
         return _pool
 
 
