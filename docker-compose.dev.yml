@@ -1,0 +1,19 @@
+# Redis and Postgres for development and tests, reachable only from this computer.
+#   docker compose -f docker-compose.dev.yml up -d
+services:
+  redis:
+    image: redis:7
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:6379:6379"]
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: artemis
+      POSTGRES_PASSWORD: artemis
+      POSTGRES_DB: artemis
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - ./deploy/dev-initdb.sql:/docker-entrypoint-initdb.d/dev-initdb.sql:ro
+      - dev_pg:/var/lib/postgresql/data
+volumes:
+  dev_pg:

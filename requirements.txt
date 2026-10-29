@@ -13,3 +13,8 @@ lightgbm==4.7.0
 numpy==2.5.4
 scipy==1.18.1
 narwhals==2.28.0
+# Redis (job queue, progress, caches, rate limits) and Postgres (accounts, history, reports)
+redis==8.1.0
+psycopg==3.3.6
+psycopg-binary==3.3.6
+psycopg-pool==3.3.3
