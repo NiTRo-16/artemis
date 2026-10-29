@@ -2,7 +2,6 @@
 import base64
 import json
 import os
-import pathlib
 import subprocess
 import sys
 import time
@@ -11,8 +10,7 @@ from urllib.parse import parse_qs, urlsplit
 
 os.environ["GOOGLE_CLIENT_ID"] = "test-client.apps.googleusercontent.com"
 os.environ["GOOGLE_CLIENT_SECRET"] = "test-secret"
-for suffix in ("", "-wal", "-shm"):
-    pathlib.Path(os.environ["ARTEMIS_DB"] + suffix).unlink(missing_ok=True)
+import testenv  # noqa: F401  (test database; must come before importing the app)
 
 import httpx  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -249,15 +247,15 @@ ok("attacker's password no longer works", fresh["password_hash"] == db.NO_PASSWO
 # deleting a Google-only account needs the email typed
 ok("delete with wrong email refused", vg.post("/api/account/delete", json={"password": "nope@example.com"}, headers=origin).status_code == 401)
 vid = db.user_by_email("victim@example.com")["id"]
-db._exec("UPDATE sessions SET expires_at = expires_at - 3600 WHERE user_id = ?", (vid,))   # signed in an hour ago
+db._exec("UPDATE sessions SET expires_at = expires_at - 3600 WHERE user_id = %s", (vid,))   # signed in an hour ago
 stale = vg.post("/api/account/delete", json={"password": "victim@example.com"}, headers=origin)
 ok("delete from an hour-old Google session refused", stale.status_code == 403 and db.get_user(vid) is not None)
-db._exec("UPDATE sessions SET expires_at = expires_at + 3600 WHERE user_id = ?", (vid,))
+db._exec("UPDATE sessions SET expires_at = expires_at + 3600 WHERE user_id = %s", (vid,))
 pw_user = TestClient(main.app)
 db.create_user("pw@example.com", "a-long-password-2"); db.mark_verified(db.user_by_email("pw@example.com")["id"])
 main.auth_limiter.hits.clear()
 pw_user.post("/api/login", json={"email": "pw@example.com", "password": "a-long-password-2"}, headers=origin)
-db._exec("UPDATE sessions SET expires_at = expires_at - 86400 WHERE user_id = ?", (db.user_by_email("pw@example.com")["id"],))
+db._exec("UPDATE sessions SET expires_at = expires_at - 86400 WHERE user_id = %s", (db.user_by_email("pw@example.com")["id"],))
 ok("password account can still delete from an old session with its password",
    pw_user.post("/api/account/delete", json={"password": "a-long-password-2"}, headers=origin).status_code == 200)
 ok("delete with own email works", vg.post("/api/account/delete", json={"password": "Victim@Example.com"}, headers=origin).status_code == 200)

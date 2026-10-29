@@ -230,7 +230,7 @@ git commit -m "Add local Redis and Postgres for development, and shared Redis co
 - Modify: `db.py` (rewrite), `tests/regress.py:1-15`, `tests/test_email.py:1-15`, `tests/test_features.py:1-18`, `tests/test_features.py:252,255,260`, `tests/test_email.py:141,163`
 
 **Interfaces:**
-- Consumes: env `DATABASE_URL` (default `postgresql://artemis:artemis@localhost:5432/artemis`).
+- Consumes: env `DATABASE_URL` (default `postgresql://artemis:artemis@127.0.0.1:5432/artemis`).
 - Produces: every existing `db` function with the same name, parameters and return shape (rows are `dict`s); new `db.ping() -> bool`, `db.reset_for_tests() -> None`, `db.share_result(result_id: str, report: dict) -> None`, `db.shared_result(result_id: str) -> dict | None`, `db.pool() -> ConnectionPool`, `db.SHARE_SECONDS`. SQL placeholders are `%s`.
 
 - [ ] **Step 1: Write `migrations/001_initial.sql`**
@@ -305,7 +305,7 @@ Import it first in every suite. Needs docker-compose.dev.yml running.
 """
 import os
 
-os.environ.setdefault("DATABASE_URL", "postgresql://artemis:artemis@localhost:5432/artemis_test")
+os.environ.setdefault("DATABASE_URL", "postgresql://artemis:artemis@127.0.0.1:5432/artemis_test")
 
 import db  # noqa: E402
 
@@ -687,7 +687,7 @@ Expected: `test_email` 32/32, `test_features` 70/70; `regress` 24/25 (the one fa
 
 - [ ] **Step 7: Check `reports.py` (the review tool) still works**
 
-Run: `PYTHONPATH=. DATABASE_URL=postgresql://artemis:artemis@localhost:5432/artemis_test .venv/Scripts/python reports.py --all`
+Run: `PYTHONPATH=. DATABASE_URL=postgresql://artemis:artemis@127.0.0.1:5432/artemis_test .venv/Scripts/python reports.py --all`
 Expected: prints the report list (or "No reports") without an error.
 
 - [ ] **Step 8: Commit**

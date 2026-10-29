@@ -1,13 +1,11 @@
 """Regression + security-fix tests against main.app with a throwaway database."""
 import asyncio
 import os
-import pathlib
 import secrets
 import time
 import types
 
-for suffix in ("", "-wal", "-shm"):
-    pathlib.Path(os.environ["ARTEMIS_DB"] + suffix).unlink(missing_ok=True)
+import testenv  # noqa: F401  (test database; must come before importing the app)
 
 from fastapi.testclient import TestClient  # noqa: E402
 

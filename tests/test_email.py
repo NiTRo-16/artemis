@@ -1,13 +1,11 @@
 """End-to-end tests for email verification and password reset (console mail backend)."""
 import os
-import pathlib
 import re
 import secrets
 import statistics
 import time
 
-for suffix in ("", "-wal", "-shm"):
-    pathlib.Path(os.environ["ARTEMIS_DB"] + suffix).unlink(missing_ok=True)
+import testenv  # noqa: F401  (test database; must come before importing the app)
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -138,7 +136,7 @@ with TestClient(main.app, base_url="http://testserver") as c:
     reset_limits()
     c.post("/api/password/forgot", json={"email": victim})
     expired = token_from(last_mail(victim, "Reset"), "/reset")
-    db._exec("UPDATE email_tokens SET expires_at = ? WHERE purpose = 'reset'", (int(time.time()) - 1,))
+    db._exec("UPDATE email_tokens SET expires_at = %s WHERE purpose = 'reset'", (int(time.time()) - 1,))
     ok("expired reset link refused", c.post("/api/password/reset", json={"token": expired, "password": new_pw}).status_code == 400)
 
     # --- links can't be pointed at another site with a forged Host header ---
@@ -160,7 +158,7 @@ with TestClient(main.app, base_url="http://testserver") as c:
     reset_limits()
     stale = f"stale-{secrets.token_hex(3)}@example.com"
     c.post("/api/signup", json={"email": stale, "password": attacker_pw})
-    db._exec("UPDATE users SET created_at = ? WHERE email = ?", (int(time.time()) - db.UNVERIFIED_SECONDS - 10, stale))
+    db._exec("UPDATE users SET created_at = %s WHERE email = %s", (int(time.time()) - db.UNVERIFIED_SECONDS - 10, stale))
     c.post("/api/signup", json={"email": f"another-{secrets.token_hex(3)}@example.com", "password": attacker_pw})
     ok("unconfirmed account older than 7 days is deleted", db.user_by_email(stale) is None)
 
