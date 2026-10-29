@@ -1,6 +1,6 @@
 # Phase 1: scalable backend
 
-Status: proposed, 29 October 2026
+Status: approved, 29 October 2026 (queue changed from Arq to Redis Streams during planning)
 
 ## Goal
 
@@ -29,9 +29,11 @@ Success means:
 
 ## Approaches considered
 
-1. **Arq job queue on Redis, Postgres for data** (recommended). Arq is a small job queue built on asyncio,
-   so the existing async scanner runs in it unchanged. Redis also holds rate limits, caches and live
-   progress. Postgres replaces SQLite.
+1. **A small job queue on Redis Streams, Postgres for data** (recommended). A stream with a consumer group
+   gives exactly what's needed: workers take jobs, acknowledge them when done, and a job a crashed worker
+   left behind is picked up by another. About 100 lines, with no queue library to depend on (Arq, the
+   usual asyncio choice, has been in maintenance-only mode since 2025). Redis also holds rate limits,
+   caches and live progress. Postgres replaces SQLite.
 2. **Celery with RabbitMQ.** The standard choice in Python, but built around synchronous code, with
    another service to run. More moving parts for no gain here.
 3. **Keep SQLite and an in-process queue, add uvicorn workers.** Least work, but state stays per process
@@ -46,7 +48,7 @@ Browser / extension ──> Caddy ──> api (FastAPI, 3 uvicorn workers, no br
                                   Redis  (in memory only, nothing written to disk)
                                     │ jobs, progress streams, rate limits, result cache
                                     ▼
-                                  worker (Arq) x N  ── each: scanner + its own Chromium
+                                  worker x N       ── each: scanner + its own Chromium
                                     │
                                     ▼
                                   Postgres  (accounts, history, reports, shared results)
@@ -58,7 +60,7 @@ Browser / extension ──> Caddy ──> api (FastAPI, 3 uvicorn workers, no br
 |---|---|---|---|
 | `caddy` | unchanged | front, public | |
 | `api` | app image | front, egress, data | `uvicorn --workers 3`; never launches Chromium; still runs the quick extension check, which needs no browser |
-| `worker` | app image | egress, data | `arq worker.WorkerSettings`; Chromium sandbox, seccomp profile and memory limit move here from today's `app`; `docker compose up --scale worker=N` |
+| `worker` | app image | egress, data | `python worker.py`; Chromium sandbox, seccomp profile and memory limit move here from today's `app`; `docker compose up --scale worker=N` |
 | `redis` | `redis:7` | data | `--save "" --appendonly no`: keeps rate-limit keys (which contain IP addresses) in memory only, as the privacy policy promises |
 | `postgres` | `postgres:17` | data | Volume `pg_data`; reachable only on the internal `data` network |
 
@@ -96,7 +98,7 @@ page works unchanged until the Phase 2 UI replaces it.
   Keys hold an HMAC of the IP address rather than the address itself. `_check_cache` moves to Redis.
 - `db.py`: the same functions, rewritten on Postgres with `psycopg` and a connection pool, so `main.py`
   barely changes. Schema in `migrations/001_initial.sql`, applied at startup.
-- New `worker.py` (Arq settings and the scan job) and `jobs.py` (enqueue, progress, result cache, used by
+- New `worker.py` (the worker loop and the scan job) and `jobs.py` (enqueue, progress, result cache, used by
   the API).
 - `tools/migrate_sqlite.py`: copies users, sessions, history, tokens and reports from the live SQLite
   file into Postgres once, at deploy time.
@@ -105,7 +107,7 @@ page works unchanged until the Phase 2 UI replaces it.
 
 - Scan timeout of 45 s inside the job; on timeout or error the stream gets an `error` event and the
   visitor sees the same messages as today.
-- A worker that dies mid-scan: Arq retries the job once on another worker; a second failure is reported
+- A worker that dies mid-scan: its unacknowledged job is claimed by another worker after 90 s and retried once; a second failure is reported
   as an error.
 - Redis down: the API returns 503 for scans (it can't queue them) and `/healthz` reports degraded. Pages,
   sign-in and history (Postgres) keep working.
@@ -116,7 +118,7 @@ page works unchanged until the Phase 2 UI replaces it.
 - Unit tests with `fakeredis` for the rate limiter, cache, job state and progress stream.
 - The existing suites (`tests/regress.py`, `test_email.py`, `test_features.py`) run against Postgres.
 - An end-to-end test: enqueue a scan of a local test page, follow its events to the final report.
-- Load test (k6): (a) API and queue capacity with a stub scanner, so no real sites are hit; (b) real
+- Load test (a Python script with httpx, so nothing extra to install): (a) API and queue capacity with a stub scanner, so no real sites are hit; (b) real
   scan throughput for 1, 2 and 3 workers, scanning a fixed list of 50 popular sites slowly. The numbers go
   in `docs/load-test.md`.
 
