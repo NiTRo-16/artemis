@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artemis account mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#050507; --surface:#0c0d11; --surface-2:#13141a; --surface-3:#1a1c23;
+    --line:rgba(236,240,255,.09); --line-2:rgba(236,240,255,.16); --line-3:rgba(236,240,255,.26);
+    --fg:#f1f2f5; --muted:#9a9eaa; --dim:#6b7080;
+    --accent:#4f7dff; --accent-hover:#3d6af0; --accent-2:#9ab8ff; --glow:rgba(29,63,209,.35);
+    --good:#3ddc84; --warn:#ffa24a; --bad:#ff5d6c; --bad-bg:rgba(255,93,108,.10); --good-bg:rgba(61,220,132,.10);
+    --glass:rgba(16,17,23,.62); --glass-2:rgba(255,255,255,.04); --glass-hi:rgba(255,255,255,.07);
+    --display:"Geist","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --mono:"Geist Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  :root[data-theme="light"]{
+    color-scheme: light;
+    --bg:#e9ecf2; --surface:#fff; --surface-2:#f4f6f9; --surface-3:#e9ecf1;
+    --line:rgba(17,24,39,.08); --line-2:rgba(17,24,39,.14); --line-3:rgba(17,24,39,.24);
+    --fg:#10131a; --muted:#4b5263; --dim:#6b7283; --accent:#2f5ee8; --accent-hover:#244fd0; --accent-2:#2f5ee8; --glow:rgba(47,94,232,.18);
+    --good:#0f8a4c; --bad:#c42b3b; --bad-bg:rgba(196,43,59,.08); --good-bg:rgba(15,138,76,.09);
+    --glass:rgba(255,255,255,.72); --glass-2:rgba(17,24,39,.03); --glass-hi:rgba(255,255,255,.9);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--fg);font-family:var(--display);-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  svg{display:block}
+  .icon{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  :focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+
+  /* ---------- mock switcher (not part of the design) ---------- */
+  .switcher{position:fixed;bottom:44px;left:50%;transform:translateX(-50%);z-index:100;display:flex;gap:4px;padding:4px;border-radius:12px;
+            background:rgba(0,0,0,.55);border:1px solid var(--line-2);backdrop-filter:blur(10px);font-family:var(--mono);font-size:11.5px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 24px)}
+  .switcher button{padding:6px 10px;border-radius:8px;color:#c8ccd6}
+  .switcher button[aria-pressed="true"]{background:#2a2d38;color:#fff}
+
+  /* ---------- the page behind (so the glass has something to show) ---------- */
+  .page{position:fixed;inset:14px;border:1px solid var(--line-2);border-radius:24px;background:var(--surface);overflow:hidden}
+  .page::before{content:"";position:absolute;inset:0;background:radial-gradient(800px 480px at 72% 30%,var(--glow),transparent 70%),
+               radial-gradient(500px 400px at 15% 85%,rgba(61,220,132,.07),transparent 70%)}
+  .page-head{position:relative;display:flex;align-items:center;gap:22px;padding:16px 22px;border-bottom:1px solid var(--line)}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:600;font-size:17px}
+  .fake-tools{display:flex;gap:18px;font-size:14px;color:var(--muted)}
+  .page-body{position:relative;padding:40px 34px;display:grid;grid-template-columns:1.1fr .9fr;gap:40px}
+  .page-body h1{font-size:64px;line-height:1.02;letter-spacing:-.045em;font-weight:500}
+  .page-body h1 span{color:var(--dim)}
+  .fake-panel{border:1px solid var(--line-2);border-radius:20px;height:330px;background:var(--surface-2);position:relative;overflow:hidden}
+  .fake-panel i{position:absolute;left:24px;right:200px;height:10px;border-radius:5px;background:var(--surface-3)}
+  .fake-ring{position:absolute;right:30px;top:90px;width:150px;height:150px;border-radius:50%;border:12px solid var(--surface-3);border-top-color:var(--good)}
+
+  /* ---------- glass layer ---------- */
+  .scrim{position:fixed;inset:0;z-index:10;background:rgba(3,4,8,.42);backdrop-filter:blur(3px)}
+  :root[data-theme="light"] .scrim{background:rgba(220,225,235,.35)}
+  .glass{position:relative;background:linear-gradient(180deg,var(--glass-hi),transparent 120px),var(--glass);
+         border:1px solid var(--line-2);backdrop-filter:blur(26px) saturate(140%);-webkit-backdrop-filter:blur(26px) saturate(140%);
+         box-shadow:0 30px 80px -20px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.08)}
+  :root[data-theme="light"] .glass{box-shadow:0 30px 80px -24px rgba(30,40,70,.28),inset 0 1px 0 rgba(255,255,255,.9)}
+  .center{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;overflow:auto}
+  .view{display:none}
+  .view.on{display:block}
+
+  /* ---------- auth card ---------- */
+  .auth{width:min(880px,100%);border-radius:26px;display:grid;grid-template-columns:.9fr 1.1fr;overflow:hidden}
+  .auth-side{position:relative;padding:34px 30px;border-right:1px solid var(--line);background:linear-gradient(160deg,rgba(79,125,255,.16),transparent 55%)}
+  .auth-side h2{font-size:28px;line-height:1.1;letter-spacing:-.03em;font-weight:500;margin:22px 0 10px}
+  .auth-side p{color:var(--muted);font-size:14.5px;line-height:1.55}
+  .perks{list-style:none;display:grid;gap:14px;margin-top:26px}
+  .perks li{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;font-size:14px}
+  .perks b{display:block;font-weight:500}
+  .perks span{color:var(--muted);font-size:13px}
+  .perk-ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--glass-2);border:1px solid var(--line-2);color:var(--accent-2)}
+  .optional{margin-top:28px;font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;color:var(--dim)}
+  .auth-main{padding:30px 32px 26px}
+  .close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--muted);border:1px solid transparent}
+  .close:hover{background:var(--glass-2);border-color:var(--line-2);color:var(--fg)}
+  .seg{display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:12px;background:var(--glass-2);border:1px solid var(--line);margin-bottom:22px;position:relative}
+  .seg button{height:38px;border-radius:9px;font-size:14px;color:var(--muted);position:relative;z-index:1;transition:color .2s}
+  .seg button[aria-selected="true"]{color:var(--fg)}
+  .seg .thumb{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:9px;background:var(--surface-3);
+              border:1px solid var(--line-2);transition:transform .25s ease}
+  .seg.right .thumb{transform:translateX(100%)}
+  .title{font-size:22px;font-weight:500;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:14px;margin-top:4px}
+  .google{width:100%;height:46px;margin-top:20px;border-radius:12px;background:#fff;color:#1f1f1f;border:1px solid #dadce0;display:flex;align-items:center;justify-content:center;
+          gap:10px;font-size:14.5px;font-weight:500;transition:box-shadow .2s,transform .1s}
+  .google:hover{box-shadow:0 6px 18px -8px rgba(0,0,0,.4)}
+  .google:active{transform:translateY(1px)}
+  .divider{display:flex;align-items:center;gap:12px;margin:18px 0 6px;color:var(--dim);font-size:12.5px}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line-2)}
+  .field{margin-top:14px}
+  .field label{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:7px}
+  .field label a{color:var(--accent-2);text-decoration:none;font-size:12.5px}
+  .control{display:flex;align-items:center;gap:10px;height:48px;padding:0 6px 0 14px;border-radius:12px;background:var(--glass-2);border:1px solid var(--line-2);
+           transition:border-color .15s,box-shadow .15s}
+  .control:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px rgba(79,125,255,.15)}
+  .control .icon{color:var(--dim)}
+  .control input{flex:1;min-width:0;height:100%;background:none;border:0;outline:0;color:var(--fg);font:inherit;font-size:15px}
+  .control input::placeholder{color:var(--dim)}
+  .peek{height:36px;padding:0 10px;border-radius:9px;font-size:12.5px;color:var(--muted)}
+  .peek:hover{background:var(--glass-2);color:var(--fg)}
+  .control.ok{border-color:color-mix(in srgb,var(--good) 55%,transparent)}
+  .control.err{border-color:color-mix(in srgb,var(--bad) 60%,transparent)}
+  .hint{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:var(--muted)}
+  .meter{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:10px}
+  .meter i{height:4px;border-radius:2px;background:var(--surface-3)}
+  .meter i.on{background:var(--good)}
+  .err-text{color:var(--bad);font-size:12.5px;margin-top:8px}
+  .primary{width:100%;height:48px;margin-top:20px;border-radius:12px;background:var(--accent);color:#fff;font-weight:500;font-size:15px;
+           display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 10px 24px -12px rgba(79,125,255,.9),inset 0 1px 0 rgba(255,255,255,.2);
+           transition:background .15s,transform .1s}
+  .primary:hover{background:var(--accent-hover)}
+  .primary:active{transform:translateY(1px)}
+  .consent{font-size:12.5px;color:var(--dim);margin-top:14px;line-height:1.55}
+  .consent a{color:var(--muted)}
+  .alt{text-align:center;font-size:13.5px;color:var(--muted);margin-top:16px}
+  .alt button{color:var(--accent-2);font-weight:500}
+  .back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13.5px;margin-bottom:18px}
+  .back:hover{color:var(--fg)}
+
+  /* sent state */
+  .sent{text-align:center;padding:12px 6px 4px}
+  .mail-ico{width:64px;height:64px;margin:6px auto 18px;border-radius:18px;display:grid;place-items:center;background:rgba(79,125,255,.12);
+            border:1px solid rgba(79,125,255,.35);color:var(--accent-2)}
+  .mail-ico .icon{width:28px;height:28px}
+  .email-chip{display:inline-block;margin:12px 0 4px;font-family:var(--mono);font-size:13px;padding:6px 10px;border-radius:8px;background:var(--glass-2);border:1px solid var(--line-2)}
+  .steps{list-style:none;text-align:left;display:grid;gap:10px;margin:20px 0 6px;counter-reset:s}
+  .steps li{display:grid;grid-template-columns:24px 1fr;gap:10px;font-size:13.5px;color:var(--muted)}
+  .steps li::before{counter-increment:s;content:counter(s);width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-family:var(--mono);
+                    font-size:11.5px;background:var(--glass-2);border:1px solid var(--line-2);color:var(--fg)}
+  .ghost{height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line-2);background:var(--glass-2);font-size:14px;font-weight:500}
+  .ghost:hover{background:var(--glass-hi);border-color:var(--line-3)}
+  .row-actions{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+
+  /* ---------- settings ---------- */
+  .settings{width:min(900px,100%);height:min(620px,calc(100vh - 32px));border-radius:26px;display:grid;grid-template-columns:230px 1fr;overflow:hidden}
+  .s-nav{padding:22px 14px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:4px;background:linear-gradient(180deg,rgba(79,125,255,.08),transparent 40%)}
+  .s-user{display:flex;align-items:center;gap:12px;padding:6px 8px 18px;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .avatar{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(140deg,#4f7dff,#2a4fd6);color:#fff;font-weight:600;font-size:16px;flex:none}
+  .s-user b{display:block;font-size:14px;font-weight:500}
+  .s-user div span{font-size:12px;color:var(--muted);display:block;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .s-link{display:flex;align-items:center;gap:10px;height:40px;padding:0 10px;border-radius:10px;font-size:14px;color:var(--muted);text-align:left}
+  .s-link:hover{background:var(--glass-2);color:var(--fg)}
+  .s-link[aria-current="true"]{background:var(--glass-hi);color:var(--fg);box-shadow:inset 0 0 0 1px var(--line-2)}
+  .s-link.danger{color:var(--bad);margin-top:auto}
+  .s-main{padding:26px 30px;overflow:auto}
+  .s-main h2{font-size:22px;font-weight:500;letter-spacing:-.02em}
+  .s-main > p{color:var(--muted);font-size:14px;margin-top:4px}
+  .group{margin-top:24px}
+  .group h3{font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:400;margin-bottom:10px}
+  .themes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .theme{border-radius:14px;padding:8px;border:1px solid var(--line-2);background:var(--glass-2);text-align:left;transition:border-color .15s,box-shadow .15s}
+  .theme:hover{border-color:var(--line-3)}
+  .theme[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,125,255,.18)}
+  .preview{height:76px;border-radius:9px;overflow:hidden;position:relative;border:1px solid var(--line)}
+  .preview.dark{background:#0c0d11}
+  .preview.light{background:#f4f6f9}
+  .preview.auto{background:linear-gradient(105deg,#f4f6f9 50%,#0c0d11 50%)}
+  .preview i{position:absolute;left:10px;height:7px;border-radius:4px}
+  .preview.dark i{background:#262935}
+  .preview.light i{background:#d6dbe4}
+  .preview.auto i{background:linear-gradient(105deg,#d6dbe4 50%,#262935 50%)}
+  .preview b{position:absolute;right:10px;bottom:10px;width:22px;height:22px;border-radius:50%;border:4px solid #4f7dff}
+  .theme-name{display:flex;justify-content:space-between;align-items:center;margin:9px 4px 2px;font-size:13.5px}
+  .tick{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line-3);display:grid;place-items:center}
+  .theme[aria-checked="true"] .tick{background:var(--accent);border-color:var(--accent)}
+  .theme[aria-checked="true"] .tick::after{content:"";width:6px;height:6px;border-radius:50%;background:#fff}
+  .setting{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:16px;border-radius:14px;background:var(--glass-2);border:1px solid var(--line)}
+  .setting + .setting{margin-top:10px}
+  .setting b{display:block;font-weight:500;font-size:14.5px}
+  .setting span{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+  .switch{width:46px;height:28px;border-radius:14px;background:var(--surface-3);border:1px solid var(--line-2);position:relative;flex:none;transition:background .2s}
+  .switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:transform .2s}
+  .switch[aria-checked="true"]{background:var(--accent);border-color:var(--accent)}
+  .switch[aria-checked="true"]::after{transform:translateX(18px)}
+  .badge{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:6px;background:var(--good-bg);color:var(--good)}
+  .setting .method{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  .saved{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--good);margin-top:16px}
+  .danger-box{border:1px solid color-mix(in srgb,var(--bad) 40%,var(--line-2));background:var(--bad-bg);border-radius:14px;padding:18px}
+  .danger-box b{font-weight:500}
+  .danger-box p{color:var(--muted);font-size:13.5px;margin-top:4px}
+  .danger-btn{height:44px;padding:0 16px;border-radius:12px;background:var(--bad);color:#fff;font-weight:500;font-size:14px;margin-top:14px}
+  .danger-btn[disabled]{opacity:.45;cursor:not-allowed}
+
+  /* ---------- account menu ---------- */
+  .menu-wrap{position:fixed;top:70px;right:36px;z-index:20}
+  .chip{position:fixed;top:24px;right:36px;z-index:21;display:flex;align-items:center;gap:10px;height:40px;padding:0 12px 0 5px;border-radius:12px;border:1px solid var(--line-3);
+        background:var(--glass);backdrop-filter:blur(16px);font-size:13.5px}
+  .chip .avatar{width:30px;height:30px;border-radius:9px;font-size:13px}
+  .menu{width:290px;border-radius:18px;padding:8px}
+  .menu-head{display:flex;gap:12px;align-items:center;padding:12px 10px 14px;border-bottom:1px solid var(--line);margin-bottom:6px}
+  .menu-head b{display:block;font-weight:500;font-size:14px}
+  .menu-head div span{font-size:12.5px;color:var(--muted)}
+  .m-item{display:flex;align-items:center;gap:12px;width:100%;height:42px;padding:0 10px;border-radius:10px;font-size:14px;text-align:left}
+  .m-item:hover{background:var(--glass-2)}
+  .m-item .icon{color:var(--muted)}
+  .m-item kbd{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim)}
+  .m-sep{height:1px;background:var(--line);margin:6px 4px}
+
+  @media (max-width:760px){
+    .page-body{grid-template-columns:1fr} .page-body h1{font-size:40px} .fake-tools{display:none}
+    .auth{grid-template-columns:1fr} .auth-side{display:none} .auth-main{padding:26px 22px}
+    .settings{grid-template-columns:1fr;height:auto} .s-nav{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:12px}
+    .s-user{display:none} .s-link{flex:none} .s-link.danger{margin-top:0}
+    .themes{grid-template-columns:1fr 1fr 1fr} .preview{height:54px}
+    .menu-wrap{right:16px} .chip{right:16px}
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5"/><path d="M4 4v4.5h4.5M12 8v4l3 2"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></symbol>
+  <symbol id="i-speed" viewBox="0 0 24 24"><path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></symbol>
+</svg>
+
+<div class="switcher" role="group" aria-label="Mock screens">
+  <button data-show="signup" aria-pressed="true">Sign up</button>
+  <button data-show="login" aria-pressed="false">Log in</button>
+  <button data-show="forgot" aria-pressed="false">Forgot password</button>
+  <button data-show="sent" aria-pressed="false">Check inbox</button>
+  <button data-show="settings" aria-pressed="false">Settings</button>
+  <button data-show="menu" aria-pressed="false">Account menu</button>
+  <button id="theme-toggle">Light / dark</button>
+</div>
+
+<!-- the page behind -->
+<div class="page" aria-hidden="true">
+  <div class="page-head">
+    <div class="logo"><svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M13 13L21.2 4.8" stroke="#4f7dff" stroke-width="2" stroke-linecap="round"/><circle cx="13" cy="13" r="2.2" fill="#4f7dff"/></svg>Artemis</div>
+    <div class="fake-tools"><span>Scan</span><span>Message check</span><span>QR and UPI</span><span>Domain watch</span><span>History</span></div>
+  </div>
+  <div class="page-body">
+    <div><h1>Check a link before you trust it. <span>See the proof.</span></h1></div>
+    <div class="fake-panel"><i style="top:30px"></i><i style="top:70px;right:260px"></i><i style="top:110px"></i><i style="top:150px;right:240px"></i><i style="top:190px"></i><div class="fake-ring"></div></div>
+  </div>
+</div>
+<div class="scrim" id="scrim"></div>
+
+<!-- ============ SIGN UP / LOG IN ============ -->
+<div class="center view on" data-view="auth">
+  <div class="auth glass" role="dialog" aria-labelledby="auth-title">
+    <aside class="auth-side">
+      <div class="logo"><svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M13 13L21.2 4.8" stroke="#4f7dff" stroke-width="2" stroke-linecap="round"/><circle cx="13" cy="13" r="2.2" fill="#4f7dff"/></svg>Artemis</div>
+      <h2 id="side-title">Keep every check in one place.</h2>
+      <p>Artemis works without an account. Signing in adds a few things that make it easier to come back to.</p>
+      <ul class="perks">
+        <li><span class="perk-ico"><svg class="icon"><use href="#i-history"/></svg></span><div><b>Your scan history</b><span>Your last 200 checks, ready to open again.</span></div></li>
+        <li><span class="perk-ico"><svg class="icon"><use href="#i-sync"/></svg></span><div><b>Settings on every device</b><span>Theme and how sites open, wherever you sign in.</span></div></li>
+        <li><span class="perk-ico"><svg class="icon"><use href="#i-speed"/></svg></span><div><b>More checks a minute</b><span>30 instead of 10.</span></div></li>
+      </ul>
+      <p class="optional">NO ADS · NO TRACKERS · DELETE ANY TIME</p>
+    </aside>
+
+    <div class="auth-main">
+      <button class="close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+
+      <!-- sign up / log in -->
+      <div class="pane" data-pane="signup login">
+        <div class="seg" id="seg" role="tablist">
+          <span class="thumb"></span>
+          <button role="tab" aria-selected="true" data-show="signup">Sign up</button>
+          <button role="tab" aria-selected="false" data-show="login">Log in</button>
+        </div>
+        <h1 class="title" id="auth-title">Create your account</h1>
+        <p class="sub" id="auth-sub">It takes a minute. We'll email you a link to confirm.</p>
+
+        <button class="google">
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          Continue with Google
+        </button>
+        <div class="divider">or with your email</div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <div class="control ok"><svg class="icon"><use href="#i-mail"/></svg><input id="email" type="email" value="asha.verma@gmail.com" autocomplete="email"><svg class="icon" style="color:var(--good)"><use href="#i-check"/></svg></div>
+        </div>
+        <div class="field">
+          <label for="pw"><span>Password</span><a href="#" id="forgot-link" data-show="forgot" hidden>Forgot password?</a></label>
+          <div class="control"><svg class="icon"><use href="#i-lock"/></svg><input id="pw" type="password" value="sunrise-kite" autocomplete="new-password"><button class="peek" id="peek" type="button">Show</button></div>
+          <div id="pw-help">
+            <div class="meter" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+            <p class="hint"><svg class="icon" style="width:15px;height:15px;color:var(--good)"><use href="#i-check"/></svg>At least 10 characters. A few unrelated words make a strong one.</p>
+          </div>
+        </div>
+
+        <button class="primary" id="submit">Create account</button>
+        <p class="consent" id="consent">By creating an account or continuing with Google, you agree to the <a href="#">Terms</a> and <a href="#">Privacy policy</a>. Artemis gives guidance, not a guarantee.</p>
+        <p class="alt" id="alt">Already have an account? <button data-show="login">Log in</button></p>
+      </div>
+
+      <!-- forgot password -->
+      <div class="pane" data-pane="forgot" hidden>
+        <button class="back" data-show="login"><svg class="icon" style="width:16px;height:16px"><use href="#i-back"/></svg>Back to log in</button>
+        <h1 class="title">Reset your password</h1>
+        <p class="sub">Enter your account's email and we'll send you a link to choose a new password. It works for an hour.</p>
+        <div class="field">
+          <label for="email2">Email</label>
+          <div class="control"><svg class="icon"><use href="#i-mail"/></svg><input id="email2" type="email" placeholder="you@example.com"></div>
+        </div>
+        <button class="primary" data-show="sent">Send reset link</button>
+        <p class="consent">Signed up with Google? You don't need a password: use Continue with Google instead.</p>
+      </div>
+
+      <!-- check inbox -->
+      <div class="pane" data-pane="sent" hidden>
+        <div class="sent">
+          <div class="mail-ico"><svg class="icon"><use href="#i-mail"/></svg></div>
+          <h1 class="title">Check your inbox</h1>
+          <p class="sub">We sent a link to</p>
+          <span class="email-chip">asha.verma@gmail.com</span>
+          <ol class="steps">
+            <li>Open the email from Artemis. It can take a minute to arrive.</li>
+            <li>Click the link. It works once and expires in 24 hours.</li>
+            <li>Enter the password you just chose, and you're in.</li>
+          </ol>
+          <div class="row-actions">
+            <button class="ghost">Open Gmail</button>
+            <button class="ghost">Use a different email</button>
+          </div>
+          <p class="consent">Not there? Check your spam folder.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SETTINGS ============ -->
+<div class="center view" data-view="settings">
+  <div class="settings glass" role="dialog" aria-label="Settings">
+    <nav class="s-nav">
+      <div class="s-user"><span class="avatar">A</span><div><b>Your account</b><span>asha.verma@gmail.com</span></div></div>
+      <button class="s-link" aria-current="true" data-tab="appearance"><svg class="icon"><use href="#i-sun"/></svg>Appearance</button>
+      <button class="s-link" aria-current="false" data-tab="browsing"><svg class="icon"><use href="#i-globe"/></svg>Opening sites</button>
+      <button class="s-link" aria-current="false" data-tab="account"><svg class="icon"><use href="#i-user"/></svg>Account</button>
+      <button class="s-link" aria-current="false" data-tab="data"><svg class="icon"><use href="#i-shield"/></svg>Your data</button>
+      <button class="s-link danger" aria-current="false" data-tab="delete"><svg class="icon"><use href="#i-trash"/></svg>Delete account</button>
+    </nav>
+    <div class="s-main" style="position:relative">
+      <button class="close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+
+      <section data-tabpane="appearance">
+        <h2>Appearance</h2>
+        <p>Saved to your account, so it follows you to every device.</p>
+        <div class="group">
+          <h3>Theme</h3>
+          <div class="themes" role="radiogroup" aria-label="Theme">
+            <button class="theme" role="radio" aria-checked="true"><div class="preview auto"><i style="top:12px;width:50%"></i><i style="top:26px;width:35%"></i><b></b></div><div class="theme-name">Match device<span class="tick"></span></div></button>
+            <button class="theme" role="radio" aria-checked="false"><div class="preview light"><i style="top:12px;width:50%"></i><i style="top:26px;width:35%"></i><b></b></div><div class="theme-name">Light<span class="tick"></span></div></button>
+            <button class="theme" role="radio" aria-checked="false"><div class="preview dark"><i style="top:12px;width:50%"></i><i style="top:26px;width:35%"></i><b></b></div><div class="theme-name">Dark<span class="tick"></span></div></button>
+          </div>
+          <p class="saved"><svg class="icon" style="width:15px;height:15px"><use href="#i-check"/></svg>Saved</p>
+        </div>
+      </section>
+
+      <section data-tabpane="browsing" hidden>
+        <h2>Opening sites</h2>
+        <p>What happens when you choose to visit a site you've checked.</p>
+        <div class="group">
+          <div class="setting"><div><b>Open sites in this tab</b><span>Off: sites open in a new tab, so your result stays open.</span></div><button class="switch" role="switch" aria-checked="false"></button></div>
+          <div class="setting"><div><b>Warn before risky sites</b><span>Always on. Artemis asks once more before you open a site with high-risk signs.</span></div><span class="badge">ALWAYS ON</span></div>
+        </div>
+      </section>
+
+      <section data-tabpane="account" hidden>
+        <h2>Account</h2>
+        <p>How you sign in to Artemis.</p>
+        <div class="group">
+          <h3>Signed in as</h3>
+          <div class="setting"><div><b>asha.verma@gmail.com</b><span class="method">
+            <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/></svg>
+            Google and password</span></div><span class="badge">CONFIRMED</span></div>
+          <div class="setting"><div><b>Password</b><span>Change it with a reset link sent to your email.</span></div><button class="ghost">Send reset link</button></div>
+          <div class="setting"><div><b>Sign out</b><span>Signs you out on this device.</span></div><button class="ghost">Sign out</button></div>
+        </div>
+      </section>
+
+      <section data-tabpane="data" hidden>
+        <h2>Your data</h2>
+        <p>What Artemis keeps for your account, and how to remove it.</p>
+        <div class="group">
+          <div class="setting"><div><b>Scan history</b><span>Your most recent 200 checks. Only you can see them.</span></div><button class="ghost">Clear history</button></div>
+          <div class="setting"><div><b>Shared results</b><span>A result you share stays available for 30 days to anyone with the link, then it's deleted.</span></div></div>
+          <div class="setting"><div><b>Privacy policy</b><span>Everything Artemis collects, why, and for how long.</span></div><button class="ghost">Read it</button></div>
+        </div>
+      </section>
+
+      <section data-tabpane="delete" hidden>
+        <h2>Delete account</h2>
+        <p>This can't be undone.</p>
+        <div class="group">
+          <div class="danger-box">
+            <b>Deleting removes your email, settings and scan history for good.</b>
+            <p>Reports you sent stay, without your name on them. You can always use Artemis without an account.</p>
+            <div class="field">
+              <label for="confirm">Type your password to confirm</label>
+              <div class="control"><svg class="icon"><use href="#i-lock"/></svg><input id="confirm" type="password" placeholder="Your password"></div>
+            </div>
+            <button class="danger-btn" disabled>Delete my account</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ACCOUNT MENU ============ -->
+<div class="view" data-view="menu">
+  <button class="chip"><span class="avatar">A</span>asha.verma@gmail.com</button>
+  <div class="menu-wrap">
+    <div class="menu glass" role="menu">
+      <div class="menu-head"><span class="avatar">A</span><div><b>Signed in</b><span>asha.verma@gmail.com</span></div></div>
+      <button class="m-item" role="menuitem"><svg class="icon"><use href="#i-history"/></svg>Scan history</button>
+      <button class="m-item" role="menuitem" data-show="settings"><svg class="icon"><use href="#i-gear"/></svg>Settings</button>
+      <div class="m-sep"></div>
+      <button class="m-item" role="menuitem"><svg class="icon"><use href="#i-out"/></svg>Sign out</button>
+    </div>
+  </div>
+</div>
+
+<p style="position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:30;font-family:var(--mono);font-size:11px;color:var(--dim)">UI MOCK · SAMPLE ACCOUNT</p>
+
+<script>
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const TEXT = {
+    signup: { title: "Create your account", sub: "It takes a minute. We'll email you a link to confirm.", submit: "Create account",
+              alt: 'Already have an account? <button data-show="login">Log in</button>' },
+    login: { title: "Welcome back", sub: "Log in to see your history and settings.", submit: "Log in",
+             alt: 'New to Artemis? <button data-show="signup">Create an account</button>' },
+  };
+
+  function show(name) {
+    $$(".switcher [data-show]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.show === name)));
+    const view = name === "settings" ? "settings" : name === "menu" ? "menu" : "auth";
+    $$(".view").forEach((v) => v.classList.toggle("on", v.dataset.view === view));
+    $("#scrim").style.display = view === "menu" ? "none" : "";
+    if (view !== "auth") return;
+    $$(".pane").forEach((p) => p.hidden = !p.dataset.pane.split(" ").includes(name));
+    if (TEXT[name]) {
+      const t = TEXT[name];
+      $("#auth-title").textContent = t.title;
+      $("#auth-sub").textContent = t.sub;
+      $("#submit").textContent = t.submit;
+      $("#alt").innerHTML = t.alt;
+      $("#seg").classList.toggle("right", name === "login");
+      $$("#seg [role=tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.show === name)));
+      $("#forgot-link").hidden = name !== "login";
+      $("#pw-help").hidden = name === "login";
+      $("#consent").hidden = false;
+      $("#side-title").textContent = name === "login" ? "Good to see you again." : "Keep every check in one place.";
+    }
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-show]");
+    if (b) { e.preventDefault(); show(b.dataset.show); }
+    const tab = e.target.closest("[data-tab]");
+    if (tab) {
+      $$(".s-link").forEach((l) => l.setAttribute("aria-current", String(l === tab)));
+      $$("[data-tabpane]").forEach((p) => p.hidden = p.dataset.tabpane !== tab.dataset.tab);
+    }
+    const theme = e.target.closest(".theme");
+    if (theme) $$(".theme").forEach((t) => t.setAttribute("aria-checked", String(t === theme)));
+    const sw = e.target.closest(".switch");
+    if (sw) sw.setAttribute("aria-checked", String(sw.getAttribute("aria-checked") !== "true"));
+  });
+  $("#peek").addEventListener("click", () => {
+    const pw = $("#pw"); pw.type = pw.type === "password" ? "text" : "password";
+    $("#peek").textContent = pw.type === "password" ? "Show" : "Hide";
+  });
+  $("#confirm").addEventListener("input", (e) => { $(".danger-btn").disabled = e.target.value.length < 1; });
+  $("#theme-toggle").addEventListener("click", () => {
+    const r = document.documentElement; r.dataset.theme = r.dataset.theme === "light" ? "dark" : "light";
+  });
+</script>
+</body>
+</html>
