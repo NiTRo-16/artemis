@@ -12,11 +12,11 @@ import json
 import os
 import secrets
 import time
-from collections import OrderedDict
 from urllib.parse import urlencode
 
 import httpx
 
+import store
 from mail import APP_URL
 
 CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
@@ -27,10 +27,13 @@ AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 ISSUERS = {"https://accounts.google.com", "accounts.google.com"}
 STATE_SECONDS = 600      # time allowed on Google's sign-in screen
-MAX_PENDING = 10_000     # sign-ins in progress kept in memory; the oldest are dropped first
 
-# state -> (expires at, PKCE verifier, nonce). In memory: a restart only cancels sign-ins in progress.
-_pending: OrderedDict[str, tuple[float, str, str]] = OrderedDict()
+# Sign-ins in progress live in Redis, keyed by a hash of the state, so whichever API process receives
+# Google's callback can finish the sign-in. Redis keeps them in memory only and drops them after STATE_SECONDS.
+
+
+def _pending_key(state: str) -> str:
+    return "oauth:" + hashlib.sha256(state.encode()).hexdigest()
 
 
 class GoogleError(Exception):
@@ -45,11 +48,8 @@ def config_problem() -> str | None:
 
 def start() -> tuple[str, str]:
     """Begin a sign-in: (state, for the browser cookie; Google URL to send the browser to)."""
-    now = time.monotonic()
-    while _pending and (len(_pending) >= MAX_PENDING or next(iter(_pending.values()))[0] < now):
-        _pending.popitem(last=False)
     state, verifier, nonce = secrets.token_urlsafe(32), secrets.token_urlsafe(64), secrets.token_urlsafe(16)
-    _pending[state] = (now + STATE_SECONDS, verifier, nonce)
+    store.sync_client().set(_pending_key(state), json.dumps([verifier, nonce]), ex=STATE_SECONDS)
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
     params = {
         "client_id": CLIENT_ID,
@@ -75,10 +75,10 @@ def _claims(id_token: str) -> dict:
 
 async def finish(state: str, code: str) -> tuple[str, str]:
     """Complete a sign-in from Google's redirect: returns (Google account ID, verified email address)."""
-    entry = _pending.pop(state, None)
-    if entry is None or entry[0] < time.monotonic():
+    entry = store.sync_client().getdel(_pending_key(state))   # read and remove at once: each state works once
+    if entry is None:
         raise GoogleError("unknown or expired state")
-    _, verifier, nonce = entry
+    verifier, nonce = json.loads(entry)
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(TOKEN_ENDPOINT, data={
