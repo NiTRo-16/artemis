@@ -68,21 +68,21 @@ with TestClient(main.app, base_url="http://testserver") as c:
     # --- fix: per-account failed-password limit (spread across networks) ---
     c.post("/api/logout")
     victim = email
-    main.auth_limiter.hits.clear()
+    main.auth_limiter.reset()
     codes = []
     for i in range(12):
-        main.auth_limiter.hits.clear()   # pretend each try comes from a different network
+        main.auth_limiter.reset()   # pretend each try comes from a different network
         codes.append(c.post("/api/login", json={"email": victim, "password": "wrong-" + str(i)}).status_code)
     ok(f"wrong passwords for one account locked after 10 (codes end {codes[-3:]})", codes[:10] == [401] * 10 and codes[10] == 429)
-    main.auth_limiter.hits.clear()
+    main.auth_limiter.reset()
     ok("right password also refused while locked", c.post("/api/login", json={"email": victim, "password": pw}).status_code == 429)
-    main.failed_login_limiter.hits.clear()
-    main.auth_limiter.hits.clear()
+    main.failed_login_limiter.reset()
+    main.auth_limiter.reset()
     ok("login works again once the lock clears", c.post("/api/login", json={"email": victim, "password": pw}).status_code == 200)
 
     # --- fix: signup limit ---
     c.post("/api/logout")
-    main.signup_limiter.hits.clear()
+    main.signup_limiter.reset()
     codes = [c.post("/api/signup", json={"email": f"s{i}-{secrets.token_hex(3)}@example.com", "password": pw}).status_code
              for i in range(7)]
     ok(f"signup limited to 5 per network per hour ({codes})", codes[:5] == [200] * 5 and codes[5] == 429)
@@ -92,7 +92,7 @@ with TestClient(main.app, base_url="http://testserver") as c:
         for _ in range(main.MAX_CONCURRENT_SCANS):
             await main.scan_slots.acquire()
     c.portal.call(fill)
-    main.scan_limiter.hits.clear()
+    main.scan_limiter.reset()
     ok("scans refused with 503 when all slots are busy", c.post("/api/scan", json={"domain": "example.com"}).status_code == 503)
 
     async def drain():
@@ -108,14 +108,10 @@ ok("two IPv6 addresses in one /64 share a limit key",
 ok("different /64s get different keys", main.client_key(req("2001:db8:1:2::1")) != main.client_key(req("2001:db8:1:3::1")))
 ok("IPv4-mapped IPv6 keyed as the IPv4", main.client_key(req("::ffff:203.0.113.5")) == "203.0.113.5")
 
-# --- fix: rate limiter sweeps idle keys only periodically ---
-rl = main.RateLimiter(60.0)
-for i in range(5000):
-    rl.check(f"k{i}", 10, "x")
-t = time.perf_counter()
-for i in range(2000):
-    rl.check("hot", 10_000, "x")
-ok(f"rate limiter no longer scans every key on each call ({(time.perf_counter() - t) * 1000:.0f} ms for 2000 calls)",
-   time.perf_counter() - t < 0.5)
+# --- rate limits are shared through Redis and hold no raw addresses ---
+import store  # noqa: E402
+main.scan_limiter.reset()
+main.scan_limiter.check("203.0.113.9", 10, "x")
+ok("limiter keys hold no raw addresses", not any("203.0.113.9" in k for k in store.sync_client().keys("rl:*")))
 
 print(f"\n{sum(results)}/{len(results)} passed")

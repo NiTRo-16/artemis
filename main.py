@@ -7,7 +7,7 @@ import logging
 import mimetypes
 import re
 import time
-from collections import OrderedDict, defaultdict, deque
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
@@ -24,6 +24,7 @@ import mail
 import render
 from impersonation import check_impersonation
 from payments import UPI_ID, is_upi, parse_upi, upi_report
+from ratelimit import RateLimiter
 from scanner import ScanError, normalize_domain, scan
 
 ROOT = Path(__file__).parent
@@ -151,49 +152,18 @@ class LimitBody:
 app.add_middleware(LimitBody, limit=MAX_BODY_BYTES)
 
 
-# ---------- rate limits ----------
+# ---------- rate limits (in Redis, shared by every process; see ratelimit.py) ----------
 
-class RateLimiter:
-    """At most `limit` hits per key within `window` seconds. Keys are forgotten once idle, so IPs aren't kept."""
-
-    def __init__(self, window: float) -> None:
-        self.window = window
-        self.hits: dict[str, deque] = defaultdict(deque)
-        self.next_sweep = 0.0
-
-    def _recent(self, key: str) -> deque:
-        now = time.monotonic()
-        if now >= self.next_sweep:   # drop idle keys at most once per window, not on every request
-            for k in [k for k, times in self.hits.items() if not times or now - times[-1] > self.window]:
-                del self.hits[k]
-            self.next_sweep = now + self.window
-        times = self.hits[key]
-        while times and now - times[0] > self.window:
-            times.popleft()
-        return times
-
-    def blocked(self, key: str, limit: int) -> bool:
-        return len(self._recent(key)) >= limit
-
-    def record(self, key: str) -> None:
-        self._recent(key).append(time.monotonic())
-
-    def check(self, key: str, limit: int, message: str) -> None:
-        """Count a hit, or refuse with 429 if the key is already at its limit."""
-        if self.blocked(key, limit):
-            raise HTTPException(429, message)
-        self.record(key)
-
-
-scan_limiter = RateLimiter(60.0)        # 10 scans a minute per visitor; 30 per account (60 per network)
-auth_limiter = RateLimiter(600.0)       # 10 login or account-deletion attempts per 10 minutes per network
-signup_limiter = RateLimiter(3600.0)    # 5 new accounts an hour per network
-failed_login_limiter = RateLimiter(3600.0)   # 10 wrong passwords an hour per account, from anywhere
-check_limiter = RateLimiter(60.0)       # extension checks: 60 a minute per network
-reset_limiter = RateLimiter(3600.0)     # 5 password-reset requests an hour per network
-email_limiter = RateLimiter(3600.0)     # 3 account emails an hour to any one address, so nobody gets flooded
-report_limiter = RateLimiter(3600.0)    # 10 site reports an hour per network
-repeat_report_limiter = RateLimiter(86400.0)   # one report a day per site per network; repeats aren't counted
+scan_limiter = RateLimiter("scan", 60.0)            # 10 scans a minute per visitor; 30 per account (60 per network)
+auth_limiter = RateLimiter("auth", 600.0)           # 10 login or account-deletion attempts per 10 minutes per network
+signup_limiter = RateLimiter("signup", 3600.0)      # 5 new accounts an hour per network
+failed_login_limiter = RateLimiter("failed_login", 3600.0)   # 10 wrong passwords an hour per account, from anywhere
+check_limiter = RateLimiter("check", 60.0)          # extension checks: 60 a minute per network
+reset_limiter = RateLimiter("reset", 3600.0)        # 5 password-reset requests an hour per network
+email_limiter = RateLimiter("email", 3600.0)        # 3 account emails an hour to any one address, so nobody gets flooded
+report_limiter = RateLimiter("report", 3600.0)      # 10 site reports an hour per network
+repeat_report_limiter = RateLimiter("repeat_report", 86400.0)   # one report a day per site per network; repeats aren't counted
+share_limiter = RateLimiter("share", 3600.0)        # 30 shared results an hour per network
 scan_slots = asyncio.Semaphore(MAX_CONCURRENT_SCANS)
 check_slots = asyncio.Semaphore(MAX_CONCURRENT_CHECKS)
 
@@ -378,7 +348,7 @@ async def reset_password(body: TokenPassword, request: Request, response: Respon
     db.mark_verified(user["id"])              # the link reached their inbox, which proves the address
     db.use_email_tokens(user["id"], "verify")
     db.end_all_sessions(user["id"])           # sign out everywhere, including anyone who knew the old password
-    failed_login_limiter.hits.pop(user["email"].lower(), None)
+    failed_login_limiter.forget(user["email"].lower())
     mail.send_password_changed(user["email"])
     start_session(request, response, user["id"])
     return account_json(db.get_user(user["id"]))

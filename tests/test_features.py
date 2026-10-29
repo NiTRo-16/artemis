@@ -156,7 +156,7 @@ subprocess.run([sys.executable, "reports.py", "done", "evil-login.example"], cap
 ok("review tool marks a site reviewed", all(r["host"] != "evil-login.example" for r in db.reports()))
 
 # ---------- Google sign-in (Google's token endpoint mocked) ----------
-main.auth_limiter.hits.clear()
+main.auth_limiter.reset()
 next_claims = {}
 
 
@@ -178,7 +178,7 @@ google_auth.httpx.AsyncClient = lambda **kw: real_client(transport=httpx.MockTra
 
 def google_login(browser, sub, email, verified=True, tamper=None):
     """Run the redirect dance; returns the final ?signin= outcome."""
-    main.auth_limiter.hits.clear()   # every test shares one client address
+    main.auth_limiter.reset()   # every test shares one client address
     start =browser.get("/api/auth/google", follow_redirects=False)
     assert start.status_code == 303, start.status_code
     q = parse_qs(urlsplit(start.headers["location"]).query)
@@ -222,7 +222,7 @@ ok("unverified Google email refused", google_login(TestClient(main.app), "sub-2"
 ok("token for another app refused", google_login(TestClient(main.app), "sub-3", "y@example.com", tamper=lambda c: c.update(aud="other")) == "failed")
 ok("wrong nonce refused", google_login(TestClient(main.app), "sub-4", "z@example.com", tamper=lambda c: c.update(nonce="x")) == "failed")
 ok("expired token refused", google_login(TestClient(main.app), "sub-5", "w@example.com", tamper=lambda c: c.update(exp=time.time() - 10)) == "failed")
-main.auth_limiter.hits.clear()
+main.auth_limiter.reset()
 cancel = TestClient(main.app).get("/api/auth/google/callback?error=access_denied", follow_redirects=False)
 ok("cancel on Google's screen returns home quietly", cancel.headers["location"] == "/")
 
@@ -237,7 +237,7 @@ ok("different Google ID can't take a linked email", google_login(TestClient(main
 # someone pre-registered the victim's email with their own password (never confirmed)
 db.create_user("victim@example.com", "attackers-password")
 pre_id = db.user_by_email("victim@example.com")["id"]
-main.auth_limiter.hits.clear()
+main.auth_limiter.reset()
 vg = TestClient(main.app)
 ok("unconfirmed pre-registered account is replaced", google_login(vg, "sub-8", "victim@example.com") == "new")
 fresh = db.user_by_email("victim@example.com")
@@ -253,7 +253,7 @@ ok("delete from an hour-old Google session refused", stale.status_code == 403 an
 db._exec("UPDATE sessions SET expires_at = expires_at + 3600 WHERE user_id = %s", (vid,))
 pw_user = TestClient(main.app)
 db.create_user("pw@example.com", "a-long-password-2"); db.mark_verified(db.user_by_email("pw@example.com")["id"])
-main.auth_limiter.hits.clear()
+main.auth_limiter.reset()
 pw_user.post("/api/login", json={"email": "pw@example.com", "password": "a-long-password-2"}, headers=origin)
 db._exec("UPDATE sessions SET expires_at = expires_at - 86400 WHERE user_id = %s", (db.user_by_email("pw@example.com")["id"],))
 ok("password account can still delete from an old session with its password",
@@ -262,7 +262,7 @@ ok("delete with own email works", vg.post("/api/account/delete", json={"password
 ok("account gone", db.user_by_email("victim@example.com") is None)
 
 # reports survive account deletion, anonymously
-main.report_limiter.hits.clear()
+main.report_limiter.reset()
 rg = TestClient(main.app)
 google_login(rg, "sub-9", "reporter@example.com")
 rg.post("/api/report", json={"target": "anon-check.example", "category": "other"}, headers={"Origin": "http://testserver"})

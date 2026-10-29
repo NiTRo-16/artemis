@@ -24,7 +24,7 @@ def ok(label, cond):
 def reset_limits():
     for limiter in (main.auth_limiter, main.signup_limiter, main.failed_login_limiter, main.reset_limiter,
                     main.email_limiter):
-        limiter.hits.clear()
+        limiter.reset()
 
 
 def last_mail(to, subject_part):
@@ -150,7 +150,7 @@ with TestClient(main.app, base_url="http://testserver") as c:
     mail.OUTBOX.clear()
     before = 0
     for _ in range(6):
-        main.reset_limiter.hits.clear()   # even from many networks
+        main.reset_limiter.reset()   # even from many networks
         c.post("/api/password/forgot", json={"email": victim})
     ok(f"at most 3 emails an hour to one address ({len(mail.OUTBOX) - before} sent for 6 requests)", len(mail.OUTBOX) - before == 3)
 
