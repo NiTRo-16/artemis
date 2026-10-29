@@ -24,3 +24,6 @@ ml/data/
 # Front end: installed packages and build output
 web/node_modules/
 web/dist/
+
+# Load test output (summarised in docs/load-test.md)
+loadtest/results-*.txt

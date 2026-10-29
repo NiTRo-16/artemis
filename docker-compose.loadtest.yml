@@ -1,0 +1,36 @@
+# A throwaway copy of Artemis for load tests, never the live site. Run it as its own project, next to the
+# live one, with its own containers, Redis and Postgres:
+#
+#   docker compose -p artemis-loadtest -f docker-compose.yml -f docker-compose.loadtest.yml up -d --build app worker
+#   docker compose -p artemis-loadtest -f docker-compose.yml -f docker-compose.loadtest.yml run --rm --no-deps \
+#       -v "$PWD/loadtest:/app/loadtest:ro" app python loadtest/run.py --base-url http://app:8000 --users 50
+#   docker compose -p artemis-loadtest -f docker-compose.yml -f docker-compose.loadtest.yml down -v
+#
+# The test runs inside the copy's own network, so nothing is published on the server.
+#
+# Workers fake their scans (ARTEMIS_STUB_SCANS), so no site is contacted, and every network is internal:
+# the copy can't reach the internet at all. Rate limits are raised so one machine can act as many visitors.
+services:
+  app:
+    environment:
+      RATE_LIMIT_MULTIPLIER: "1000"
+    networks: !override
+      - front
+      - data
+  worker:
+    environment:
+      ARTEMIS_STUB_SCANS: "1"
+    networks: !override
+      - data
+networks:
+  # Different subnets from the live project's, which uses 172.29.0.0/24 and 172.30.0.0/24.
+  front:
+    internal: true
+    ipam: !override
+      config:
+        - subnet: 172.29.10.0/24
+  egress:
+    internal: true
+    ipam: !override
+      config:
+        - subnet: 172.30.10.0/24
