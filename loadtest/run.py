@@ -36,6 +36,8 @@ async def visitor(client, targets, deadline, stats):
                 break
             await asyncio.sleep(0.5)
         stats["total"].append(time.monotonic() - started)
+        if time.monotonic() <= deadline:   # scans still running when time is up don't count towards the rate
+            stats["in_window"] += 1
         stats["outcomes"][state["status"]] = stats["outcomes"].get(state["status"], 0) + 1
 
 
@@ -51,14 +53,15 @@ async def main():
     args = ap.parse_args()
     counter = itertools.count()
     targets = (f"load-{int(time.time())}-{n}.example" for n in counter)
-    stats = {"submit": [], "total": [], "refused": {}, "outcomes": {}}
+    stats = {"submit": [], "total": [], "refused": {}, "outcomes": {}, "in_window": 0}
     deadline = time.monotonic() + args.seconds
     limits = httpx.Limits(max_connections=args.users, max_keepalive_connections=args.users)
     async with httpx.AsyncClient(base_url=args.base_url, timeout=60, limits=limits) as client:
         await asyncio.gather(*(visitor(client, targets, deadline, stats) for _ in range(args.users)))
     done = len(stats["total"])
     print(f"visitors={args.users} seconds={args.seconds}")
-    print(f"finished={done} per_minute={done / args.seconds * 60:.0f} outcomes={stats['outcomes']} refused={stats['refused'] or 'none'}")
+    print(f"finished={done} (within the time: {stats['in_window']}, per_minute={stats['in_window'] / args.seconds * 60:.0f}) "
+          f"outcomes={stats['outcomes']} refused={stats['refused'] or 'none'}")
     if stats["submit"]:
         print(f"start_request_ms median={statistics.median(stats['submit']) * 1000:.0f} p95={pct(stats['submit'], 0.95) * 1000:.0f}")
     if done:
