@@ -73,7 +73,7 @@ ok("short-name typos need a clue", m("phase.com") is None and m("chose.org") is 
 ok("empty and odd names don't crash", m("") is None and m("*.") is None and m("localhost") is None and m("xn--é.com") is None)
 
 # Found by reading real names from the logs on 30 October 2026.
-for host in ("pianoledger.com", "energy-outlook.org", "outlook.gworld.net", "virtualcloud.co.in", "leder.nu", "outloop.pl", "finance.ae.org",
+for host in ("pianoledger.com", "energy-outlook.org", "outlook.gworld.net", "virtualcloud.co.in", "leder.nu", "outloop.pl", "finance.ae.org", "658125.xyz", "h65bl.top", "icicn.com", "gewa.icivi.vn", "pay77.click", "cp.hdfc.bank.in",
              "test.acm.eusc-de-east-1.amazonaws.eu", "cloudauth.jkss.create-burner.amazon.dev", "payment.gateway.elb.prod.ride.use1.aws.rezos.io",
              "vex.ppim.aws.porsche-preview.cloud"):
     ok(f"innocent, from the logs: {host}", m(host) is None)
@@ -81,6 +81,8 @@ for host in ("facebook-login-urgent-verify.org.ph", "paypal-com.celebsplay.com",
              "www.icloud.com.falk-ngr.metropoly.ir", "app.binance-secure.com", "trezor-io-strt-ass.pages.dev"):
     ok(f"suspicious, from the logs: {host}", m(host) is not None)
 ok("distinctive Indian names need no clue", brand("hdfc-loans.in") == "HDFC Bank" and brand("paytm-offers.in") == "Paytm")
+for host in ("www.incometaxindia.co", "dqmappuat.icicibankltd.com", "icic1-login.top"):
+    ok(f"Indian lookalike still caught: {host}", m(host) is not None)
 ok("a loose word plus a clue still counts", brand("ledger-secure.com") == "Ledger")
 ok("a real address needs something after it", m("www.zoom.us") is None)
 

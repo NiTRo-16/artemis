@@ -18,6 +18,7 @@ SHORT = 6   # keywords shorter than this appear in many innocent names, so they 
 COMMON_WORDS = {"ledger", "outlook", "blockchain", "kraken", "icloud", "discord", "apple", "adobe", "slack", "chase"}
 # Short, but appear in almost nothing else, and these are the names Artemis most needs to catch.
 DISTINCTIVE = {"hdfc", "icici", "paytm", "npci"}
+VETTED_SUFFIXES = {"bank.in", "fin.in"}   # RBI gives these only to real banks and finance companies
 REAL_WORDS = {"finance"}   # one letter from a brand, but an everyday word
 CLUES = {"login", "signin", "kyc", "verify", "verification", "secure", "bank", "banking", "netbanking", "pay",
          "payment", "update", "reward", "rewards", "refund", "account", "otp", "upi", "card", "support"}
@@ -45,8 +46,9 @@ _keywords = {skeleton(kw) for _, kws, _ in BRANDS for kw in kws}
 _loose = {skeleton(w) for w in COMMON_WORDS} | {k for k in _keywords if len(k) < SHORT} - {skeleton(w) for w in DISTINCTIVE}
 _firm = sorted(_keywords - _loose, key=len, reverse=True)
 _FIRM_RX = re.compile("|".join(map(re.escape, _firm)))
-_FIRM_TYPOS = {t for k in _firm if len(k) >= 5 for t in _one_typo(k)} - _keywords - {skeleton(w) for w in REAL_WORDS}
-_LOOSE_TYPOS = {t for k in _loose if len(k) >= 5 for t in _one_typo(k)} - _keywords
+# One typo from a five-letter name is often just another word (icicn, icivi), so those need a clue too.
+_FIRM_TYPOS = {t for k in _firm if len(k) >= SHORT for t in _one_typo(k)} - _keywords - {skeleton(w) for w in REAL_WORDS}
+_LOOSE_TYPOS = {t for k in _keywords if len(k) >= 5 and (k in _loose or len(k) < SHORT) for t in _one_typo(k)} - _keywords
 _NON_LETTERS = re.compile(r"[^a-z]+")
 # A brand's real address used as the start of someone else's: support.zoom.us.tokovpn.com
 _REAL_ADDRESS_RX = re.compile(r"(?:^|\.)(?:" + "|".join(sorted((re.escape(d) for _, kws, ds in BRANDS if kws for d in ds), key=len, reverse=True)) + r")\.")
@@ -67,7 +69,8 @@ def _loose_name_counts(text: str, labels: list[str], host: str) -> bool:
         return False
     if not (tokens & _CLUE_SKELETONS or labels[-1] in RISKY_TLDS):
         return False
-    own = _extract(host).domain.translate(_ASCII_SKELETON).replace("rn", "m").replace("vv", "w")
+    # Letters only: digits read as letters would make 658125.xyz say "sbl", which is how sbi folds.
+    own = _extract(host).domain.translate(_LETTER_SKELETON).replace("rn", "m").replace("vv", "w")
     return bool(set(_NON_LETTERS.split(own)) & _loose) or own in _LOOSE_TYPOS
 
 
@@ -91,7 +94,7 @@ def match(name: str) -> Match | None:
     if not _passes_filter(text, host):
         return None
     parts = _extract(host)
-    if not parts.suffix or not parts.domain:
+    if not parts.suffix or not parts.domain or parts.suffix in VETTED_SUFFIXES:
         return None
     registrable = registrable_domain(host)
     if official_brand(registrable):
@@ -103,3 +106,4 @@ def match(name: str) -> Match | None:
 
 
 _ASCII_SKELETON = str.maketrans({ch: skeleton(ch) for ch in string.ascii_lowercase + string.digits + "-."})
+_LETTER_SKELETON = str.maketrans({ch: skeleton(ch) for ch in string.ascii_lowercase})
