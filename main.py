@@ -14,9 +14,11 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import ct_logs
 import db
@@ -225,13 +227,26 @@ def start_session(request: Request, response: Response, user_id: int) -> None:
 
 
 def account_json(user) -> dict:
-    return {"email": user["email"], "settings": db.get_settings(user), "has_password": db.has_password(user),
+    return {"email": user["email"], "name": user["name"], "settings": db.get_settings(user), "has_password": db.has_password(user),
             "google": user["google_sub"] is not None}
 
 
 class Credentials(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=128)
+
+
+class Signup(Credentials):
+    name: str = Field(default="", max_length=80)
+
+
+class NameChange(BaseModel):
+    name: str = Field(max_length=80)
+
+
+def clean_name(name: str) -> str:
+    """One line of printable text, with ordinary spacing."""
+    return " ".join("".join(ch if ch.isprintable() or ch.isspace() else "" for ch in name).split())
 
 
 class Settings(BaseModel):
@@ -265,7 +280,7 @@ class Confirm(BaseModel):
 
 
 @app.post("/api/signup")
-async def signup(body: Credentials, request: Request, response: Response) -> dict:
+async def signup(body: Signup, request: Request, response: Response) -> dict:
     require_same_origin(request)
     signup_limiter.check(client_key(request), 5, "Too many new accounts from your network. Try again later.")
     email = body.email.strip()
@@ -279,7 +294,7 @@ async def signup(body: Credentials, request: Request, response: Response) -> dic
     existing = db.user_by_email(email)
     if existing is None:
         try:
-            user_id = await asyncio.to_thread(db.create_user, email, body.password)
+            user_id = await asyncio.to_thread(db.create_user, email, body.password, clean_name(body.name))
             if may_email(email):
                 mail.send_verification(email, db.create_email_token(user_id, "verify"))
             return CHECK_EMAIL
@@ -429,6 +444,17 @@ async def google_callback(request: Request, state: str = "", code: str = "", err
     response = back("new" if created else "ok")
     start_session(request, response, user_id)
     return response
+
+
+@app.put("/api/account/name")
+async def put_name(body: NameChange, request: Request) -> dict:
+    require_same_origin(request)
+    user = require_user(request)
+    name = clean_name(body.name)
+    if not name:
+        raise HTTPException(400, "Enter your name.")
+    db.set_name(user["id"], name)
+    return {"name": name}
 
 
 @app.put("/api/settings")
@@ -775,6 +801,14 @@ async def result_page(job_id: str) -> FileResponse:
 # The app's scripts, styles and fonts. Their names contain a hash of their content, so they can be cached for good.
 app.mount("/assets", StaticFiles(directory=WEB / "assets", check_dir=False), name="assets")
 app.mount("/fonts", StaticFiles(directory=ROOT / "fonts"), name="fonts")   # used by the privacy and terms pages
+
+
+@app.exception_handler(StarletteHTTPException)
+async def page_not_found(request: Request, exc: StarletteHTTPException) -> Response:
+    # An address that isn't a page gets the app, which shows its 404 page. APIs and files keep their usual answer.
+    if exc.status_code == 404 and request.method in ("GET", "HEAD") and not request.url.path.startswith(("/api/", "/assets/", "/fonts/")):
+        return FileResponse(WEB / "index.html", status_code=404, headers={"Cache-Control": "no-cache"})
+    return await http_exception_handler(request, exc)
 
 
 @app.get("/r/{job_id}", include_in_schema=False)

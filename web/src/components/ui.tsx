@@ -111,7 +111,7 @@ export function RiskRing({ score, tone, scanning, label = "RISK" }:
         {scanning && <g className="ring-sweep"><path d="M85 85 L85 11" /></g>}
       </svg>
       <div className="ring-num">
-        <b>{score ?? (scanning ? "" : "0")}</b>
+        <b>{score ?? ""}</b>
         <span>{label}</span>
       </div>
     </div>

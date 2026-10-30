@@ -7,13 +7,13 @@ import { GlassDialog, GoogleLogo, Icon, Logo } from "./ui";
 const EMAIL = /^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$/;
 
 const MODES: Record<AuthMode, { title: string; intro: string; submit: string; email: boolean; password: string | null; autocomplete?: string }> = {
-  signup: { title: "Create your account", intro: "It takes a minute. We'll email you a link to confirm.", submit: "Create account",
+  signup: { title: "Create your account", intro: "", submit: "Create account",
             email: true, password: "Password", autocomplete: "new-password" },
-  login: { title: "Welcome back", intro: "Log in to see your history and settings.", submit: "Log in", email: true,
+  login: { title: "Welcome back", intro: "", submit: "Log in", email: true,
            password: "Password", autocomplete: "current-password" },
-  forgot: { title: "Reset your password", intro: "Enter your account's email and we'll send you a link to choose a new password. It works for an hour.",
+  forgot: { title: "Reset your password", intro: "We'll email you a link to choose a new password.",
             submit: "Send reset link", email: true, password: null },
-  verify: { title: "Confirm your email", intro: "Enter the password you chose when you signed up to finish creating your account.",
+  verify: { title: "Confirm your email", intro: "Enter the password you chose when you signed up.",
             submit: "Confirm email", email: false, password: "Password", autocomplete: "current-password" },
   reset: { title: "Choose a new password", intro: "Setting a new password signs you out on all your other devices.",
            submit: "Set password", email: false, password: "New password", autocomplete: "new-password" },
@@ -37,6 +37,7 @@ function webmailFor(email: string): string | null {
 export function AuthDialog() {
   const { auth, openAuth, closeAuth, googleSignin, setAccount, applySettings, saveSettings, settings } = useAccount();
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [peek, setPeek] = useState(false);
   const [error, setError] = useState("");
@@ -53,6 +54,10 @@ export function AuthDialog() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (mode === "signup" && !name.trim()) {
+      setError("Enter your name.");
+      return;
+    }
     if ((m.email && !email.trim()) || (m.password && !password)) {
       setError(m.email && m.password ? "Enter your email and password." : m.email ? "Enter your email." : "Enter your password.");
       return;
@@ -66,7 +71,7 @@ export function AuthDialog() {
     try {
       const address = email.trim();
       if (mode === "signup") {
-        await backend.signup(address, password);
+        await backend.signup(address, password, name.trim());
         setSent({ to: address, kind: "signup" });
       } else if (mode === "forgot") {
         await backend.forgotPassword(address);
@@ -94,13 +99,11 @@ export function AuthDialog() {
       <aside className="auth-side">
         <div className="logo"><Logo />Artemis</div>
         <h2>{mode === "login" ? "Good to see you again." : "Keep every check in one place."}</h2>
-        <p>Artemis works without an account. Signing in adds a few things that make it easier to come back to.</p>
         <ul className="perks">
-          <li><span className="perk-icon"><Icon name="history" /></span><div><b>Your scan history</b><span>Your last 200 checks, ready to open again.</span></div></li>
-          <li><span className="perk-icon"><Icon name="sync" /></span><div><b>Settings on every device</b><span>Theme and how sites open, wherever you sign in.</span></div></li>
-          <li><span className="perk-icon"><Icon name="speed" /></span><div><b>More checks a minute</b><span>30 instead of 10.</span></div></li>
+          <li><span className="perk-icon"><Icon name="history" /></span><div><b>Your scan history</b></div></li>
+          <li><span className="perk-icon"><Icon name="sync" /></span><div><b>Settings on every device</b></div></li>
+          <li><span className="perk-icon"><Icon name="speed" /></span><div><b>30 checks a minute</b><span>Instead of 10</span></div></li>
         </ul>
-        <p className="side-foot">NO ADS · NO TRACKERS · DELETE ANY TIME</p>
       </aside>
 
       <div className="auth-main">
@@ -110,17 +113,7 @@ export function AuthDialog() {
             <h1 className="auth-title">Check your inbox</h1>
             <p className="auth-intro">{sent.kind === "signup" ? "We sent a link to" : "If there's an account for this address, we sent a reset link to"}</p>
             <span className="email-chip">{sent.to}</span>
-            <ol className="steps">
-              {sent.kind === "signup" ? <>
-                <li>Open the email from Artemis. It can take a minute to arrive.</li>
-                <li>Click the link. It works once and expires in 24 hours.</li>
-                <li>Enter the password you just chose, and you're in.</li>
-              </> : <>
-                <li>Open the email from Artemis. It can take a minute to arrive.</li>
-                <li>Click the link. It works once and expires in 1 hour.</li>
-                <li>Choose a new password. You'll be signed out everywhere else.</li>
-              </>}
-            </ol>
+            <p className="auth-intro">{sent.kind === "signup" ? "The link works for 24 hours." : "The link works for 1 hour."}</p>
             <div className="sent-actions">
               {webmail && <a className="btn-glass" href={webmail} target="_blank" rel="noopener noreferrer">Open your inbox</a>}
               <button className="btn-glass" type="button" onClick={() => { setSent(null); openAuth(sent.kind === "signup" ? "signup" : "forgot"); }}>
@@ -140,21 +133,31 @@ export function AuthDialog() {
               <button className="back-link" type="button" onClick={() => openAuth("login")}><Icon name="back" />Back to log in</button>
             ) : null}
             <h1 className="auth-title">{m.title}</h1>
-            <p className="auth-intro">{m.intro}</p>
+            {m.intro && <p className="auth-intro">{m.intro}</p>}
 
             {google && <>
               <a className="google-btn" href="/api/auth/google"><GoogleLogo />Continue with Google</a>
-              <div className="or-line">or with your email</div>
+              <div className="or-line">or</div>
             </>}
 
             <form onSubmit={submit} noValidate>
+              {mode === "signup" && (
+                <div className="gfield">
+                  <label htmlFor="auth-name">Name</label>
+                  <div className="gcontrol">
+                    <Icon name="user" />
+                    <input id="auth-name" type="text" autoComplete="name" maxLength={80} value={name}
+                      onChange={(e) => setName(e.target.value)} autoFocus />
+                  </div>
+                </div>
+              )}
               {m.email && (
                 <div className="gfield">
                   <label htmlFor="auth-email">Email</label>
                   <div className={`gcontrol${email && emailOk ? " ok" : ""}`}>
                     <Icon name="mail" />
                     <input id="auth-email" type="email" autoComplete="email" maxLength={254} value={email} placeholder="you@example.com"
-                      onChange={(e) => setEmail(e.target.value)} autoFocus />
+                      onChange={(e) => setEmail(e.target.value)} autoFocus={mode !== "signup"} />
                     {email && emailOk && <Icon name="check" className="icon good" />}
                   </div>
                 </div>
@@ -175,7 +178,7 @@ export function AuthDialog() {
                     <div className="meter" aria-hidden="true">{[1, 2, 3, 4].map((n) => <i key={n} className={strength >= n ? (strength < 2 ? "weak" : "on") : ""} />)}</div>
                     <p className={`hint${password.length >= 10 ? " good" : ""}`}>
                       {password.length >= 10 && <Icon name="check" className="icon good" />}
-                      At least 10 characters. A few unrelated words make a strong one.
+                      At least 10 characters
                     </p>
                   </>}
                 </div>
@@ -186,16 +189,9 @@ export function AuthDialog() {
                 <p className="fine">
                   By {google ? "creating an account or continuing with Google" : "creating an account"}, you agree to
                   the <a href="/terms" target="_blank" rel="noopener">Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy policy</a>.
-                  Artemis gives guidance, not a guarantee.
                 </p>
               )}
               {mode === "forgot" && <p className="fine">Signed up with Google? You don't need a password: use Continue with Google instead.</p>}
-              {tabs && (
-                <p className="switch-line">
-                  {mode === "signup" ? <>Already have an account? <button type="button" onClick={() => openAuth("login")}>Log in</button></>
-                    : <>New to Artemis? <button type="button" onClick={() => openAuth("signup")}>Create an account</button></>}
-                </p>
-              )}
             </form>
           </>
         )}

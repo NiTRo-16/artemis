@@ -38,7 +38,6 @@ export function SharedPage() {
 function Missing({ text }: { text: string }) {
   return (
     <div className="tool-head">
-      <p className="eyebrow">Scan result</p>
       <h1 className="small-h1">{text}</h1>
       <Link className="btn btn-primary" to="/">Scan a site</Link>
     </div>
@@ -73,7 +72,7 @@ export function ResultView({ report, shareId, shared = false }: { report: Report
     <article>
       <div className="result-head">
         <div>
-          <p className="eyebrow">{shared ? "Shared scan result" : "Scan result"}</p>
+          {shared && <p className="eyebrow">Shared result</p>}
           <h2 className="result-target">{report.domain}</h2>
           <div className="verdict-row">
             {report.risk && <span className={`verdict ${tone}`}><span className="dot" />{report.risk.label.toUpperCase()} RISK
@@ -99,7 +98,6 @@ export function ResultView({ report, shareId, shared = false }: { report: Report
             <h3>{factors.length ? "Why it's risky" : "What we found"}</h3>
             {factors.length ? (
               <>
-                <p className="sub">The main reasons, most serious first.</p>
                 <ul className="reasons">
                   {factors.map((f) => <li key={f.text}><span className={`sev-dot ${f.tone}`} /><span>{f.text}</span></li>)}
                 </ul>
@@ -109,7 +107,6 @@ export function ResultView({ report, shareId, shared = false }: { report: Report
           {!upi && categories.length > 0 && (
             <section className="card">
               <h3>Security checks</h3>
-              <p className="sub">How the site is set up. {report.duration_ms != null && `Scanned in ${(report.duration_ms / 1000).toFixed(1)} s.`}</p>
               <div className="grades">
                 {categories.map((c) => (
                   <div className="grade" key={c.key} title={c.notes.join(" ")}>
@@ -143,8 +140,8 @@ export function ResultView({ report, shareId, shared = false }: { report: Report
             <h3>If you already entered details</h3>
             <div className="todo">
               <a href="https://cybercrime.gov.in/" target="_blank" rel="noopener noreferrer">
-                <span>Report it on cybercrime.gov.in<small>India's official place to report online fraud.</small></span><Icon name="out" /></a>
-              <a href="tel:1930"><span>Lost money? Call 1930<small>The national cyber fraud helpline. Calling quickly gives the best chance of stopping the payment.</small></span><Icon name="out" /></a>
+                <span>Report it on cybercrime.gov.in</span><Icon name="out" /></a>
+              <a href="tel:1930"><span>Lost money? Call 1930<small>National cyber fraud helpline</small></span><Icon name="out" /></a>
             </div>
           </section>
         </div>
@@ -160,7 +157,6 @@ function Findings({ findings }: { findings: Finding[] }) {
   return (
     <section className="card">
       <h3>Findings <span className="count">{findings.length}</span></h3>
-      <p className="sub">Problems in how the site is set up, most serious first.</p>
       <ul className="findings">
         {findings.map((f, i) => (
           <li key={i} className={open === i ? "open" : ""}>

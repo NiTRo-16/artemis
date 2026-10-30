@@ -44,7 +44,8 @@ export type WatchSummary = {
 export const getWatchSummary = () => api<WatchSummary>("/api/watch/summary");
 
 export const me = () => api<{ account: Account | null; google_signin: boolean }>("/api/me");
-export const signup = (email: string, password: string) => api("/api/signup", { method: "POST", body: { email, password } });
+export const signup = (email: string, password: string, name: string) => api("/api/signup", { method: "POST", body: { email, password, name } });
+export const putName = (name: string) => api<{ name: string }>("/api/account/name", { method: "PUT", body: { name } });
 export const login = (email: string, password: string) => api<Account>("/api/login", { method: "POST", body: { email, password } });
 export const verifyEmail = (token: string, password: string) => api<Account>("/api/verify", { method: "POST", body: { token, password } });
 export const forgotPassword = (email: string) => api("/api/password/forgot", { method: "POST", body: { email } });

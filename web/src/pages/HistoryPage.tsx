@@ -23,15 +23,13 @@ export function HistoryPage() {
   return (
     <section>
       <div className="tool-head">
-        <p className="eyebrow">Your history</p>
         <h1 className="small-h1">Everything you've checked.</h1>
-        <p className="lede">Saved to your account, so you can check a site again from here. Your most recent 200 scans are kept, and you can delete them at any time.</p>
       </div>
       {!account ? (
         <div className="actions"><button className="btn btn-primary" type="button" onClick={() => openAuth("login")}>Log in to see your history</button>
           <button className="btn" type="button" onClick={() => openAuth("signup")}>Create an account</button></div>
       ) : scans === null ? <p className="note">Loading</p> : scans.length === 0 ? (
-        <p className="note">No scans yet. Scans you run while signed in appear here.</p>
+        <p className="note">No scans yet.</p>
       ) : (
         <>
           <div className="table-wrap">

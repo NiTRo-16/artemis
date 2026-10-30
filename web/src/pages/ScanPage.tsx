@@ -9,13 +9,13 @@ import { matchingRecent, rememberSearch, saveRecent } from "../recent";
 import { riskTone, safeUrl } from "../report";
 import type { Report, ScanEvent, StepStatus } from "../types";
 
-export const STEPS: [string, string, string][] = [
-  ["resolve", "Address", "DNS"],
-  ["certificate", "Certificate", "TLS"],
-  ["email", "Email records", "SPF, DMARC"],
-  ["records", "Domain age and blocklists", "RDAP, CT, lists"],
-  ["page", "Page in a sealed browser", "Chromium"],
-  ["impersonation", "Lookalike and brand check", "incl. ML"],
+export const STEPS: [string, string][] = [
+  ["resolve", "Address"],
+  ["certificate", "Certificate"],
+  ["email", "Email records"],
+  ["records", "Domain age and blocklists"],
+  ["page", "Page in a sealed browser"],
+  ["impersonation", "Lookalike and brand check"],
 ];
 
 type Live = { target: string; id: string | null; steps: Record<string, StepStatus>; report: Report | null; error: string };
@@ -121,10 +121,8 @@ export function ScanPage() {
   return (
     <section className="hero">
       <div>
-        <p className="eyebrow">Website, link and UPI safety check</p>
         <h1>Check a link before you trust it. <span className="soft">See the proof.</span></h1>
-        <p className="lede">Paste a website, a link from a message, or a UPI payment link. Artemis checks its certificate,
-          its age, whether it copies a known brand, and opens it in a sealed browser to look for fake login and payment forms.</p>
+        <p className="lede">Paste a website, a link from a message, or a UPI payment link.</p>
         <form className="scanbox" onSubmit={submit} role="search">
           <div className="field-row">
             <Icon name="link" className="icon dim" />
@@ -160,15 +158,15 @@ export function ScanPage() {
 
       <div className="panel" aria-live="polite">
         <div className="panel-head"><span className="eyebrow">Live scan</span>
-          <span className="eyebrow">{!live ? "Ready" : busy ? `${done} of ${STEPS.length}` : report ? "Finished" : "Stopped"}</span></div>
-        <div className="target"><Icon name="link" className="icon dim" /><span>{live?.target || "Nothing scanned yet"}</span></div>
+          <span className="eyebrow">{!live ? "" : busy ? `${done} of ${STEPS.length}` : report ? "Finished" : "Stopped"}</span></div>
+        {live && <div className="target"><Icon name="link" className="icon dim" /><span>{live.target}</span></div>}
         {report?.kind === "upi" ? (
           <p className="note">{report.payment?.summary}</p>
         ) : (
           <div className="gauge-row">
             <ul className="checks">
-              {STEPS.map(([key, label, where]) => (
-                <li key={key}><span>{label}<span className="where">{where}</span></span>
+              {STEPS.map(([key, label]) => (
+                <li key={key}><span>{label}</span>
                   <StatusTag status={live?.steps[key] ?? (busy ? "run" : undefined)} /></li>
               ))}
             </ul>
@@ -190,11 +188,7 @@ export function ScanPage() {
             </div>
             <RiskDialog report={report} open={warning} onClose={() => setWarning(false)} />
           </div>
-        ) : (
-          <div className="panel-foot">
-            <span className="small">{live?.error || (busy ? "Each check appears as it finishes." : "Results appear here as each check finishes.")}</span>
-          </div>
-        )}
+        ) : live?.error ? <div className="panel-foot"><span className="small">{live.error}</span></div> : null}
       </div>
     </section>
   );
@@ -203,6 +197,6 @@ export function ScanPage() {
 function summary(report: Report): string {
   if (report.kind === "upi") return report.payment?.verdict ?? "";
   if (report.resolves === false) return "Offline: this address doesn't load.";
-  if (report.visit?.allowed) return "No problems found. The full report has the details.";
-  return `${report.risk?.label ?? "Unknown"} risk. See the full report before you visit.`;
+  if (report.visit?.allowed) return "No problems found.";
+  return `${report.risk?.label ?? "Unknown"} risk.`;
 }

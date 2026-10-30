@@ -93,7 +93,8 @@ function AccountMenu() {
   }, [open]);
 
   if (!account) return null;
-  const initial = account.email.slice(0, 1).toUpperCase();
+  const shown = account.name || account.email;
+  const initial = shown.slice(0, 1).toUpperCase();
   async function signOut() {
     setOpen(false);
     try { await backend.logout(); } catch { /* signed out here regardless */ }
@@ -102,11 +103,11 @@ function AccountMenu() {
   return (
     <div className="account-menu" ref={box}>
       <button className="user-chip" type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span className="avatar">{initial}</span><span className="user-email">{account.email}</span>
+        <span className="avatar">{initial}</span><span className="user-email">{shown}</span>
       </button>
       {open && (
         <div className="menu-panel" role="menu">
-          <div className="menu-head"><span className="avatar">{initial}</span><div><b>Signed in</b><span>{account.email}</span></div></div>
+          <div className="menu-head"><span className="avatar">{initial}</span><div><b>{account.name || "Signed in"}</b><span>{account.email}</span></div></div>
           <button className="menu-item" role="menuitem" type="button" onClick={() => { setOpen(false); navigate("/history"); }}>
             <Icon name="history" />Scan history</button>
           <button className="menu-item" role="menuitem" type="button" onClick={() => { setOpen(false); setSettingsOpen(true); }}>

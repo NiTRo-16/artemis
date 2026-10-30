@@ -50,10 +50,21 @@ describe("sign-in dialog", () => {
     expect(screen.queryByRole("link", { name: "Continue with Google" })).toBeNull();
   });
 
-  it("refuses a short password before sending anything", async () => {
+  it("asks for a name before sending anything", async () => {
     const calls = mockMe(false);
     show("signup");
     fireEvent.change(await screen.findByLabelText("Email"), { target: { value: "asha@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "long enough password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "Enter your name.");
+    expect(calls.filter((c) => c === "/api/signup")).toHaveLength(0);
+  });
+
+  it("refuses a short password before sending anything", async () => {
+    const calls = mockMe(false);
+    show("signup");
+    fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Asha" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "asha@example.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "short" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
     expect(await screen.findByRole("alert")).toHaveProperty("textContent", "Use a password of at least 10 characters.");

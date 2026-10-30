@@ -25,7 +25,6 @@ export function WatchPage() {
   return (
     <section>
       <div className="tool-head">
-        <p className="eyebrow">Domain watch</p>
         <h1 className="small-h1">New lookalike names, counted as they appear.</h1>
         <p className="lede">Artemis reads public certificate logs and notes new domains whose names resemble a known brand. Each is checked once in a sealed browser.</p>
       </div>
@@ -58,7 +57,6 @@ export function WatchPage() {
       </div>
 
       <div className="actions"><Link className="btn btn-primary" to="/">Scan a site</Link></div>
-      <p className="note small">Watching for copies of your own brand is planned and not available yet.</p>
     </section>
   );
 }

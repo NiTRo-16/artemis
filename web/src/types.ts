@@ -48,7 +48,7 @@ export interface Report {
   visit?: { allowed: boolean; url: string | null; criteria: Criterion[] } | null;
 }
 
-export interface Account { email: string; has_password: boolean; google: boolean; settings: Settings }
+export interface Account { email: string; name: string; has_password: boolean; google: boolean; settings: Settings }
 
 export interface Settings { theme: "system" | "light" | "dark"; same_tab: boolean }
 

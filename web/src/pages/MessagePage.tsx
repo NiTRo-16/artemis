@@ -54,27 +54,22 @@ export function MessagePage() {
   return (
     <section>
       <div className="tool-head">
-        <p className="eyebrow">Message check</p>
         <h1 className="small-h1">Paste a message you're not sure about.</h1>
-        <p className="lede">Artemis looks for the wording scammers use, in English and Hinglish, and checks every link and UPI ID in the message.</p>
       </div>
-      <div className="tool-split">
+      <div className={result ? "tool-split" : "tool-single"}>
         <form onSubmit={submit}>
           <textarea className="input message-box" aria-label="Message to check" maxLength={MAX} value={text}
             placeholder="Paste the SMS or WhatsApp message here" onChange={(e) => setText(e.target.value)} />
           <div className="actions">
             <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? "Checking" : "Check message"}</button>
-            <span className="small">{text.length} of {MAX} characters</span>
+            {text.length >= MAX - 200 && <span className="small">{text.length} of {MAX} characters</span>}
           </div>
           {error && <p className="form-error" role="alert">{error}</p>}
-          <p className="note small">Your message isn't stored. Links in it are opened in a sealed browser to check them, so a one-time link may stop working afterwards.</p>
+          <p className="note small">Messages aren't stored. Links in them are opened in a sealed browser, so a one-time link may stop working.</p>
         </form>
 
         <div aria-live="polite" ref={results}>
-          {!result ? (
-            <div className="card tool-empty"><h3>The result appears here</h3>
-              <p className="sub">You'll see which scam it matches, the words that gave it away, and a check of each link.</p></div>
-          ) : (
+          {result && (
             <div className="stack">
               <section className={`card level-${level === "clear" ? "clear" : level}`}>
                 <div className="verdict-line"><StatusTag status={TAG[level]} /></div>
@@ -107,13 +102,13 @@ export function MessagePage() {
                           ) : (
                             <div className="link-scan">
                               <div className="link-scan-text"><span className="link-value">{item.value}</span>
-                                <span className="small">Phone number. Artemis can't tell who owns a number. Don't call numbers from a message you doubt: use the one on your card or the official site.</span></div>
+                                <span className="small">Artemis can't tell who owns a number. Use the one on your card or the official site.</span></div>
                             </div>
                           )}
                       </li>
                     ))}
                   </ul>
-                  {scanning && <p className="small">Still checking links. The verdict above can change.</p>}
+                  {scanning && <p className="small">Still checking links.</p>}
                 </section>
               )}
 
@@ -122,8 +117,8 @@ export function MessagePage() {
                   <h3>What to do</h3>
                   <p className="sub">Don't click, pay, call back or share any code. If you've already paid or shared details:</p>
                   <div className="todo">
-                    <a href="tel:1930"><span>Call 1930<small>The national cyber fraud helpline. Calling quickly gives the best chance of stopping the payment.</small></span></a>
-                    <a href="https://cybercrime.gov.in/" target="_blank" rel="noopener noreferrer"><span>Report it on cybercrime.gov.in<small>India's official place to report online fraud.</small></span></a>
+                    <a href="tel:1930"><span>Call 1930<small>National cyber fraud helpline</small></span></a>
+                    <a href="https://cybercrime.gov.in/" target="_blank" rel="noopener noreferrer"><span>Report it on cybercrime.gov.in</span></a>
                   </div>
                 </section>
               )}

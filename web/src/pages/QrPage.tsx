@@ -67,30 +67,24 @@ export function QrPage() {
   return (
     <section>
       <div className="tool-head">
-        <p className="eyebrow">QR and UPI check</p>
         <h1 className="small-h1">Check a QR code before you pay.</h1>
-        <p className="lede">Upload a screenshot of a QR code. Artemis shows who gets the money or where the link really goes, and warns you about known tricks.</p>
       </div>
-      <div className="tool-split">
+      <div className={read ? "tool-split" : "tool-single"}>
         <div>
           <label className={`dropzone${over ? " over" : ""}`} onDragOver={(e) => { e.preventDefault(); setOver(true); }}
             onDragLeave={() => setOver(false)} onDrop={drop}>
             <Icon name="qr" className="icon drop-icon" />
             <b>{busy ? "Reading the code" : "Choose a screenshot"}</b>
-            <span className="small">or drop it here, or paste it · PNG, JPG or WebP</span>
+            <span className="small">or drop or paste it here</span>
             <input ref={input} className="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp" aria-label="QR code screenshot"
               onChange={(e) => void open(e.target.files?.[0])} />
           </label>
           {error && <p className="form-error" role="alert">{error}</p>}
-          <p className="note small">The image is read on your device and never uploaded. Only what the code contains is sent, to check it.</p>
-          <p className="note small">UPI links can also be checked from the <Link to="/">scan page</Link>.</p>
+          <p className="note small">The image stays on your device.</p>
         </div>
 
         <div aria-live="polite" ref={results}>
-          {!read ? (
-            <div className="card tool-empty"><h3>The result appears here</h3>
-              <p className="sub">You'll see what the code really does before you scan it with your payment app.</p></div>
-          ) : read.kind === "upi" ? (
+          {!read ? null : read.kind === "upi" ? (
             <div className="stack">
               <div className="card qr-warning"><b>Scanning a QR and entering your PIN always sends money.</b>
                 <p className="sub">You never need your PIN to receive money.</p></div>
@@ -100,7 +94,6 @@ export function QrPage() {
             <div className="stack">
               <section className="card">
                 <h3>This code opens a website</h3>
-                <p className="sub">QR codes hide the address. This is where it goes:</p>
                 <p className="decoded">{read.text}</p>
               </section>
               <section className="card"><h3>Link check</h3><LinkScan target={read.text.trim()} /></section>
@@ -108,7 +101,6 @@ export function QrPage() {
           ) : (
             <section className="card">
               <h3>This code isn't a link or a payment</h3>
-              <p className="sub">It contains this text:</p>
               <p className="decoded">{read.text}</p>
               <div className="actions"><Link className="btn" to="/messages" state={{ text: read.text }}>Check it as a message</Link></div>
             </section>

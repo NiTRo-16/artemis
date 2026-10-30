@@ -156,10 +156,10 @@ class EmailTaken(Exception):
     pass
 
 
-def create_user(email: str, password: str) -> int:
+def create_user(email: str, password: str, name: str = "") -> int:
     try:
-        return _exec("INSERT INTO users (email, password_hash, settings, created_at) VALUES (%s, %s, %s, %s) RETURNING id",
-                     (email, hash_password(password), json.dumps(DEFAULT_SETTINGS), int(time.time())))
+        return _exec("INSERT INTO users (email, password_hash, settings, created_at, name) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                     (email, hash_password(password), json.dumps(DEFAULT_SETTINGS), int(time.time()), name))
     except psycopg.errors.UniqueViolation:
         raise EmailTaken
 
@@ -204,6 +204,10 @@ def google_user(sub: str, email: str) -> tuple[int, bool] | None:
                            VALUES (%s, %s, %s, %s, 1, %s) RETURNING id""",
                         (email, NO_PASSWORD, json.dumps(DEFAULT_SETTINGS), int(time.time()), sub)).fetchone()
         return row["id"], True
+
+
+def set_name(user_id: int, name: str) -> None:
+    _exec("UPDATE users SET name = %s WHERE id = %s", (name, user_id))
 
 
 def set_password(user_id: int, password: str) -> None:
