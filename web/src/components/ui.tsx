@@ -1,5 +1,6 @@
 // Small building blocks shared by the pages.
 import { useEffect, useRef, type ReactNode } from "react";
+import { tk, useT } from "../i18n";
 
 /** Text where `backticks` mark code, as the scanner writes finding titles and fixes. */
 export function Rich({ text }: { text: string }) {
@@ -64,11 +65,12 @@ function useModal(open: boolean) {
 export function GlassDialog({ open, onClose, label, className, children }:
   { open: boolean; onClose: () => void; label: string; className: string; children: ReactNode }) {
   const ref = useModal(open);
+  const t = useT();
   return (
     <dialog ref={ref} className={`glass-dialog ${className}`} aria-label={label} onClose={onClose}
       onClick={(e) => { if (e.target === ref.current) onClose(); }}>
       {open && <>
-        <button className="glass-close" type="button" aria-label="Close" onClick={onClose}><Icon name="x" /></button>
+        <button className="glass-close" type="button" aria-label={t("Close")} onClick={onClose}><Icon name="x" /></button>
         {children}
       </>}
     </dialog>
@@ -79,13 +81,14 @@ export function GlassDialog({ open, onClose, label, className, children }:
 export function Dialog({ open, onClose, title, children, wide = false }:
   { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
   const ref = useModal(open);
+  const t = useT();
   return (
     <dialog ref={ref} className={`dialog${wide ? " wide" : ""}`} aria-label={title} onClose={onClose}
       onClick={(e) => { if (e.target === ref.current) onClose(); }}>
       {open && <div className="dialog-body">
         <div className="dialog-head">
           <h2>{title}</h2>
-          <button className="icon-btn" type="button" aria-label="Close" onClick={onClose}><Icon name="x" /></button>
+          <button className="icon-btn" type="button" aria-label={t("Close")} onClick={onClose}><Icon name="x" /></button>
         </div>
         {children}
       </div>}
@@ -93,15 +96,17 @@ export function Dialog({ open, onClose, title, children, wide = false }:
   );
 }
 
-const STATUS_WORD: Record<string, string> = { ok: "PASS", warn: "WARN", bad: "FLAG", done: "DONE", skipped: "SKIP", run: "RUN" };
+const STATUS_WORD: Record<string, string> = { ok: tk("PASS"), warn: tk("WARN"), bad: tk("FLAG"), done: tk("DONE"), skipped: tk("SKIP"), run: tk("RUN") };
 
 export function StatusTag({ status }: { status?: string }) {
-  return <span className={`status ${status ?? ""}`}>{status ? STATUS_WORD[status] ?? status.toUpperCase() : "· · ·"}</span>;
+  const t = useT();
+  return <span className={`status ${status ?? ""}`}>{status ? t(STATUS_WORD[status] ?? status.toUpperCase()) : "· · ·"}</span>;
 }
 
 /** The risk ring from the portfolio's analyzer: fills to the score, coloured by risk level. */
 export function RiskRing({ score, tone, scanning, label = "RISK" }:
   { score: number | null; tone: string; scanning?: boolean; label?: string }) {
+  const t = useT();
   const filled = score == null ? 0 : (465 * Math.max(0, Math.min(100, score))) / 100;
   return (
     <div className={`ring ${tone}`}>
@@ -112,7 +117,7 @@ export function RiskRing({ score, tone, scanning, label = "RISK" }:
       </svg>
       <div className="ring-num">
         <b>{score ?? ""}</b>
-        <span>{label}</span>
+        <span>{t(label)}</span>
       </div>
     </div>
   );

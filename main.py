@@ -252,6 +252,7 @@ def clean_name(name: str) -> str:
 class Settings(BaseModel):
     theme: Literal["system", "light", "dark"] = "system"
     same_tab: bool = False
+    language: Literal["en", "hi"] = "en"
 
 
 class EmailOnly(BaseModel):

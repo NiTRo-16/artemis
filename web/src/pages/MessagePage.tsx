@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { useLocation } from "react-router";
 import { api } from "../api";
 import { LinkScan } from "../components/LinkScan";
+import { useT } from "../i18n";
 import { highlight, overallLevel, type Level, type MessageResult } from "../messages";
 import { StatusTag } from "../components/ui";
 
@@ -17,10 +18,11 @@ export function MessagePage() {
   const [links, setLinks] = useState<Record<string, Level>>({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const t = useT();
   const results = useRef<HTMLDivElement>(null);
 
   async function check(value: string) {
-    if (!value.trim()) { setError("Paste a message to check."); return; }
+    if (!value.trim()) { setError(t("Paste a message to check.")); return; }
     setBusy(true);
     setError("");
     setResult(null);
@@ -54,18 +56,18 @@ export function MessagePage() {
   return (
     <section>
       <div className="tool-head">
-        <h1 className="small-h1">Paste a message you're not sure about.</h1>
+        <h1 className="small-h1">{t("Paste a message you're not sure about.")}</h1>
       </div>
       <div className={result ? "tool-split" : "tool-single"}>
         <form onSubmit={submit}>
-          <textarea className="input message-box" aria-label="Message to check" maxLength={MAX} value={text}
-            placeholder="Paste the SMS or WhatsApp message here" onChange={(e) => setText(e.target.value)} />
+          <textarea className="input message-box" aria-label={t("Message to check")} maxLength={MAX} value={text}
+            placeholder={t("Paste the SMS or WhatsApp message here")} onChange={(e) => setText(e.target.value)} />
           <div className="actions">
-            <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? "Checking" : "Check message"}</button>
-            {text.length >= MAX - 200 && <span className="small">{text.length} of {MAX} characters</span>}
+            <button className="btn btn-primary" type="submit" disabled={busy}>{t(busy ? "Checking" : "Check message")}</button>
+            {text.length >= MAX - 200 && <span className="small">{t("{count} of {max} characters", { count: text.length, max: MAX })}</span>}
           </div>
           {error && <p className="form-error" role="alert">{error}</p>}
-          <p className="note small">Messages aren't stored. Links in them are opened in a sealed browser, so a one-time link may stop working.</p>
+          <p className="note small">{t("Messages aren't stored. Links in them are opened in a sealed browser, so a one-time link may stop working.")}</p>
         </form>
 
         <div aria-live="polite" ref={results}>
@@ -73,22 +75,22 @@ export function MessagePage() {
             <div className="stack">
               <section className={`card level-${level === "clear" ? "clear" : level}`}>
                 <div className="verdict-line"><StatusTag status={TAG[level]} /></div>
-                <h3>{raisedByLink && level === "danger" ? "A link in this message looks dangerous"
-                  : raisedByLink ? "A link in this message needs care" : result.verdict}</h3>
-                <p className="sub">{raisedByLink ? "See the link check below before you open it." : result.summary}</p>
+                <h3>{t(raisedByLink && level === "danger" ? "A link in this message looks dangerous"
+                  : raisedByLink ? "A link in this message needs care" : result.verdict)}</h3>
+                <p className="sub">{t(raisedByLink ? "See the link check below before you open it." : result.summary)}</p>
                 {result.matches.length > 0 && (
                   <p className="quoted">{highlight(checked, result.matches).map((part, i) =>
                     part.marked ? <mark key={i}>{part.text}</mark> : <span key={i}>{part.text}</span>)}</p>
                 )}
                 {result.scripts.length > 1 && (
                   <ul className="signals">{result.scripts.slice(1).map((s) => <li key={s.id} className={s.strength === "strong" ? "red" : "amber"}>
-                    <b>{s.title}.</b> {s.explanation}</li>)}</ul>
+                    <b>{t(s.title)}.</b> {t(s.explanation)}</li>)}</ul>
                 )}
               </section>
 
               {result.items.length > 0 && (
                 <section className="card">
-                  <h3>In this message</h3>
+                  <h3>{t("In this message")}</h3>
                   <ul className="found-items">
                     {result.items.map((item) => (
                       <li key={`${item.kind}-${item.value}`}>
@@ -96,29 +98,29 @@ export function MessagePage() {
                           : item.kind === "upi" ? (
                             <div className="link-scan">
                               <div className="link-scan-text"><span className="link-value">{item.value}</span>
-                                <span className="small">{item.payment ? `UPI: ${item.payment.verdict}. Your UPI app shows the registered name before you pay.` : "This UPI link isn't valid."}</span></div>
+                                <span className="small">{item.payment ? t("UPI: {verdict}. Your UPI app shows the registered name before you pay.", { verdict: t(item.payment.verdict) }) : t("This UPI link isn't valid.")}</span></div>
                               <div className="link-scan-side"><StatusTag status={item.payment ? TAG[item.payment.level] : "skipped"} /></div>
                             </div>
                           ) : (
                             <div className="link-scan">
                               <div className="link-scan-text"><span className="link-value">{item.value}</span>
-                                <span className="small">Artemis can't tell who owns a number. Use the one on your card or the official site.</span></div>
+                                <span className="small">{t("Artemis can't tell who owns a number. Use the one on your card or the official site.")}</span></div>
                             </div>
                           )}
                       </li>
                     ))}
                   </ul>
-                  {scanning && <p className="small">Still checking links.</p>}
+                  {scanning && <p className="small">{t("Still checking links.")}</p>}
                 </section>
               )}
 
               {level !== "clear" && (
                 <section className="card">
-                  <h3>What to do</h3>
-                  <p className="sub">Don't click, pay, call back or share any code. If you've already paid or shared details:</p>
+                  <h3>{t("What to do")}</h3>
+                  <p className="sub">{t("Don't click, pay, call back or share any code. If you've already paid or shared details:")}</p>
                   <div className="todo">
-                    <a href="tel:1930"><span>Call 1930<small>National cyber fraud helpline</small></span></a>
-                    <a href="https://cybercrime.gov.in/" target="_blank" rel="noopener noreferrer"><span>Report it on cybercrime.gov.in</span></a>
+                    <a href="tel:1930"><span>{t("Call 1930")}<small>{t("National cyber fraud helpline")}</small></span></a>
+                    <a href="https://cybercrime.gov.in/" target="_blank" rel="noopener noreferrer"><span>{t("Report it on cybercrime.gov.in")}</span></a>
                   </div>
                 </section>
               )}

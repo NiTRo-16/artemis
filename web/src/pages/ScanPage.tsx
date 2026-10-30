@@ -4,18 +4,19 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { useAccount } from "../account";
 import { startScan } from "../api";
 import { RiskDialog } from "../components/ReportDialogs";
+import { tk, useT, type Translate } from "../i18n";
 import { Icon, RiskRing, StatusTag } from "../components/ui";
 import { matchingRecent, rememberSearch, saveRecent } from "../recent";
-import { riskTone, safeUrl } from "../report";
+import { riskName, riskTone, safeUrl } from "../report";
 import type { Report, ScanEvent, StepStatus } from "../types";
 
 export const STEPS: [string, string][] = [
-  ["resolve", "Address"],
-  ["certificate", "Certificate"],
-  ["email", "Email records"],
-  ["records", "Domain age and blocklists"],
-  ["page", "Page in a sealed browser"],
-  ["impersonation", "Lookalike and brand check"],
+  ["resolve", tk("Address")],
+  ["certificate", tk("Certificate")],
+  ["email", tk("Email records")],
+  ["records", tk("Domain age and blocklists")],
+  ["page", tk("Page in a sealed browser")],
+  ["impersonation", tk("Lookalike and brand check")],
 ];
 
 type Live = { target: string; id: string | null; steps: Record<string, StepStatus>; report: Report | null; error: string };
@@ -31,6 +32,7 @@ export function ScanPage() {
   const [active, setActive] = useState(-1);
   const [warning, setWarning] = useState(false);
   const { settings } = useAccount();
+  const t = useT();
   const source = useRef<EventSource | null>(null);
 
   useEffect(() => () => source.current?.close(), []);
@@ -62,13 +64,13 @@ export function ScanPage() {
         } else {
           events.close();
           setBusy(false);
-          setLive((l) => l && (event.type === "done" ? { ...l, report: event.report } : { ...l, error: event.message }));
+          setLive((l) => l && (event.type === "done" ? { ...l, report: event.report } : { ...l, error: t(event.message) }));
         }
       };
       events.onerror = () => {
         events.close();
         setBusy(false);
-        setLive((l) => l && !l.report ? { ...l, error: "Lost the connection to the scan. Try again." } : l);
+        setLive((l) => l && !l.report ? { ...l, error: t("Lost the connection to the scan. Try again.") } : l);
       };
     } catch (err) {
       setBusy(false);
@@ -121,12 +123,12 @@ export function ScanPage() {
   return (
     <section className="hero">
       <div>
-        <h1>Check a link before you trust it. <span className="soft">See the proof.</span></h1>
-        <p className="lede">Paste a website, a link from a message, or a UPI payment link.</p>
+        <h1>{t("Check a link before you trust it.")} <span className="soft">{t("See the proof.")}</span></h1>
+        <p className="lede">{t("Paste a website, a link from a message, or a UPI payment link.")}</p>
         <form className="scanbox" onSubmit={submit} role="search">
           <div className="field-row">
             <Icon name="link" className="icon dim" />
-            <input aria-label="Domain, link or UPI ID to scan" placeholder="example.com, a link or a UPI ID" autoComplete="off"
+            <input aria-label={t("Domain, link or UPI ID to scan")} placeholder={t("example.com, a link or a UPI ID")} autoComplete="off"
               role="combobox" aria-expanded={recent.length > 0} aria-controls="recent-list"
               aria-activedescendant={active >= 0 ? `recent-${active}` : undefined}
               value={target} maxLength={2048}
@@ -134,13 +136,13 @@ export function ScanPage() {
               onFocus={() => !busy && setRecent(matchingRecent(target))}
               onBlur={() => { setRecent([]); setActive(-1); }}
               onKeyDown={onKey} />
-            <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? "Scanning" : "Scan"}</button>
+            <button className="btn btn-primary" type="submit" disabled={busy}>{t(busy ? "Scanning" : "Scan")}</button>
           </div>
           {recent.length > 0 && (
             <div className="recent">
-              <div className="recent-head"><span className="eyebrow">Recent</span>
+              <div className="recent-head"><span className="eyebrow">{t("Recent")}</span>
                 <button type="button" className="link-btn" onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => { saveRecent([]); setRecent([]); }}>Clear</button></div>
+                  onClick={() => { saveRecent([]); setRecent([]); }}>{t("Clear")}</button></div>
               <ul id="recent-list" role="listbox">
                 {recent.map((r, i) => (
                   <li key={r} id={`recent-${i}`} role="option" aria-selected={i === active}
@@ -151,39 +153,39 @@ export function ScanPage() {
           )}
           {error && <p className="form-error" role="alert">{error}</p>}
           {target.trim().split(/\s+/).length >= 4 && (
-            <p className="note small">This looks like a whole message. <Link to="/messages" state={{ text: target }}>Check it with Message check</Link></p>
+            <p className="note small">{t("This looks like a whole message.")} <Link to="/messages" state={{ text: target }}>{t("Check it with Message check")}</Link></p>
           )}
         </form>
       </div>
 
       <div className="panel" aria-live="polite">
-        <div className="panel-head"><span className="eyebrow">Live scan</span>
-          <span className="eyebrow">{!live ? "" : busy ? `${done} of ${STEPS.length}` : report ? "Finished" : "Stopped"}</span></div>
+        <div className="panel-head"><span className="eyebrow">{t("Live scan")}</span>
+          <span className="eyebrow">{!live ? "" : busy ? t("{done} of {total}", { done, total: STEPS.length }) : t(report ? "Finished" : "Stopped")}</span></div>
         {live && <div className="target"><Icon name="link" className="icon dim" /><span>{live.target}</span></div>}
         {report?.kind === "upi" ? (
-          <p className="note">{report.payment?.summary}</p>
+          <p className="note">{t(report.payment?.summary ?? "")}</p>
         ) : (
           <div className="gauge-row">
             <ul className="checks">
               {STEPS.map(([key, label]) => (
-                <li key={key}><span>{label}</span>
+                <li key={key}><span>{t(label)}</span>
                   <StatusTag status={live?.steps[key] ?? (busy ? "run" : undefined)} /></li>
               ))}
             </ul>
             <RiskRing score={score} tone={report ? riskTone(report) : "none"} scanning={busy}
-              label={report && report.risk?.score == null ? "OFFLINE" : "RISK"} />
+              label={report && report.risk?.score == null ? tk("OFFLINE") : tk("RISK")} />
           </div>
         )}
         {report ? (
           <div className="panel-result">
-            <p className="main-result">{summary(report)}</p>
+            <p className="main-result">{summary(report, t)}</p>
             <div className="actions">
               {url && report.visit?.allowed && <a className="btn btn-primary" href={url} target={settings.same_tab ? "_self" : "_blank"}
-                rel="noopener noreferrer">Continue to site</a>}
-              {url && !report.visit?.allowed && <button className="btn btn-danger" type="button" onClick={() => setWarning(true)}>Continue anyway</button>}
+                rel="noopener noreferrer">{t("Continue to site")}</a>}
+              {url && !report.visit?.allowed && <button className="btn btn-danger" type="button" onClick={() => setWarning(true)}>{t("Continue anyway")}</button>}
               <button className="btn" type="button"
                 onClick={() => navigate(live?.id ? `/scan/${live.id}` : "/scan/upi", { state: { report, target: live?.target } })}>
-                Open full report
+                {t("Open full report")}
               </button>
             </div>
             <RiskDialog report={report} open={warning} onClose={() => setWarning(false)} />
@@ -194,9 +196,9 @@ export function ScanPage() {
   );
 }
 
-function summary(report: Report): string {
-  if (report.kind === "upi") return report.payment?.verdict ?? "";
-  if (report.resolves === false) return "Offline: this address doesn't load.";
-  if (report.visit?.allowed) return "No problems found.";
-  return `${report.risk?.label ?? "Unknown"} risk.`;
+function summary(report: Report, t: Translate): string {
+  if (report.kind === "upi") return t(report.payment?.verdict ?? "");
+  if (report.resolves === false) return t("Offline: this address doesn't load.");
+  if (report.visit?.allowed) return t("No problems found.");
+  return t(riskName(report.risk?.label));
 }

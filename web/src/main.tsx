@@ -1,6 +1,7 @@
 import "@fontsource-variable/geist";
 import "@fontsource/geist-mono/400.css";
 import "@fontsource/geist-mono/500.css";
+import "./hindi.css";
 import "./styles.css";
 import "./glass.css";
 import { StrictMode } from "react";

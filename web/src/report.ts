@@ -1,5 +1,11 @@
 // Reading a report: what made it risky, and whether it can be reported.
+import { tk } from "./i18n";
 import type { Report, Tone } from "./types";
+
+const RISK_NAMES: Record<string, string> = { Low: tk("Low risk"), Medium: tk("Medium risk"), High: tk("High risk") };
+
+/** A risk label as words, ready to translate. */
+export const riskName = (label: string | undefined) => (label && RISK_NAMES[label]) || tk("Unknown risk");
 
 /** Everything that made the site high risk, strongest first, without repeats. */
 export function riskFactors(report: Report): { text: string; tone: Tone }[] {

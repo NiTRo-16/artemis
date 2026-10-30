@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { getScan, startScan } from "../api";
+import { translate, useT } from "../i18n";
 import { linkLevel, type Level } from "../messages";
 import type { Report, ScanEvent } from "../types";
 import { StatusTag } from "./ui";
@@ -13,6 +14,7 @@ export function LinkScan({ target, onLevel }: { target: string; onLevel?: (level
   const [steps, setSteps] = useState(0);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState("");
+  const t = useT();
 
   useEffect(() => {
     let stopped = false;
@@ -39,12 +41,12 @@ export function LinkScan({ target, onLevel }: { target: string; onLevel?: (level
         else {
           events?.close();
           if (event.type === "done") finish(event.report);
-          else if (!stopped) setError(event.message);
+          else if (!stopped) setError(translate(event.message));
         }
       };
       events.onerror = () => {
         events?.close();
-        if (!stopped) setError("Lost the connection to the scan.");
+        if (!stopped) setError(translate("Lost the connection to the scan."));
       };
     }).catch((err) => { if (!stopped) setError((err as Error).message); });
     return () => { stopped = true; events?.close(); };
@@ -58,12 +60,12 @@ export function LinkScan({ target, onLevel }: { target: string; onLevel?: (level
         <span className="link-value">{target}</span>
         <span className="small">
           {error || (report
-            ? (offline ? "Offline: the address doesn't load. " : "") + (report.impersonation?.verdict ?? "")
-            : `Checking in a sealed browser, ${steps} of ${TOTAL_STEPS}`)}
+            ? (offline ? t("Offline: the address doesn't load.") + " " : "") + t(report.impersonation?.verdict ?? "")
+            : t("Checking in a sealed browser, {done} of {total}", { done: steps, total: TOTAL_STEPS }))}
         </span>
       </div>
       <div className="link-scan-side">
-        {report && id && <Link className="btn btn-small" to={`/scan/${id}`} state={{ report }}>Full report</Link>}
+        {report && id && <Link className="btn btn-small" to={`/scan/${id}`} state={{ report }}>{t("Full report")}</Link>}
         {error ? <StatusTag status="skipped" />
           : !report ? <StatusTag status="run" />
           : <StatusTag status={level === "danger" ? "bad" : level === "caution" ? "warn" : "done"} />}

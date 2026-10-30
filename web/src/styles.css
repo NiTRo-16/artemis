@@ -7,8 +7,8 @@
   --accent: #4f7dff; --accent-hover: #3d6af0; --accent-2: #9ab8ff; --accent-ink: #fff; --glow: rgba(29, 63, 209, .32);
   --good: #3ddc84; --warn: #ffa24a; --bad: #ff5d6c; --info: #9ab8ff;
   --good-bg: rgba(61, 220, 132, .10); --warn-bg: rgba(255, 162, 74, .10); --bad-bg: rgba(255, 93, 108, .11);
-  --display: "Geist Variable", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --display: "Geist Variable", "Noto Sans Devanagari", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: "Geist Mono", "Noto Sans Devanagari", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --radius: 24px; --r-btn: 10px; --r-card: 16px;
 }
 :root[data-theme="light"] {

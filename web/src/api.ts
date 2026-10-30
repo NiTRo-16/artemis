@@ -1,4 +1,5 @@
 // Calls to the Artemis backend. Every function throws an Error whose message can be shown to the user.
+import { translate } from "./i18n";
 import type { Account, HistoryItem, Report, Settings } from "./types";
 
 export class ApiError extends Error {
@@ -14,12 +15,12 @@ export async function api<T>(path: string, options: { method?: string; body?: un
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     });
   } catch {
-    throw new ApiError("Couldn't reach Artemis. Check your connection and try again.", 0);
+    throw new ApiError(translate("Couldn't reach Artemis. Check your connection and try again."), 0);
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const detail = typeof data.detail === "string" ? data.detail : "Something went wrong. Try again.";
-    throw new ApiError(detail, res.status);
+    throw new ApiError(translate(detail), res.status);
   }
   return data as T;
 }

@@ -1,10 +1,11 @@
 // The signed-in account, the visitor's settings and the account dialogs, shared by every page.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import * as backend from "./api";
+import { LanguageContext, setCurrentLanguage, tk } from "./i18n";
 import type { Account, Settings } from "./types";
 
 const SETTINGS_KEY = "artemis.settings";
-const DEFAULT_SETTINGS: Settings = { theme: "system", same_tab: false };
+const DEFAULT_SETTINGS: Settings = { theme: "system", same_tab: false, language: "en" };
 
 export type AuthMode = "signup" | "login" | "forgot" | "verify" | "reset";
 
@@ -35,7 +36,8 @@ function loadLocal(): Settings {
 }
 
 function clean(s: Partial<Settings>): Settings {
-  return { theme: s.theme === "light" || s.theme === "dark" ? s.theme : "system", same_tab: !!s.same_tab };
+  return { theme: s.theme === "light" || s.theme === "dark" ? s.theme : "system", same_tab: !!s.same_tab,
+           language: s.language === "hi" ? "hi" : "en" };
 }
 
 export function AccountProvider({ children }: { children: ReactNode }) {
@@ -48,6 +50,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const applySettings = useCallback((next: Settings) => {
     const s = clean(next);
     setSettings(s);
+    setCurrentLanguage(s.language);
     if (s.theme === "system") delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = s.theme;
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* storage unavailable */ }
@@ -73,7 +76,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       if (data.account && signin === "new") void backend.putSettings(settings).catch(() => undefined);
       else if (data.account) applySettings(data.account.settings);
       if (signin === "failed" && !data.account) {
-        setAuth({ mode: "login", token: "", error: "Google sign-in didn't work. Try again, or log in with your email and password." });
+        setAuth({ mode: "login", token: "", error: tk("Google sign-in didn't work. Try again, or log in with your email and password.") });
       }
     }).catch(() => setAccount(null));
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -86,7 +89,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     settingsOpen, setSettingsOpen,
   }), [account, googleSignin, settings, saveSettings, applySettings, auth, settingsOpen]);
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return <LanguageContext.Provider value={settings.language}><Ctx.Provider value={value}>{children}</Ctx.Provider></LanguageContext.Provider>;
 }
 
 export function useAccount(): AccountState {

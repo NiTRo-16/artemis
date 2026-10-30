@@ -50,7 +50,7 @@ export interface Report {
 
 export interface Account { email: string; name: string; has_password: boolean; google: boolean; settings: Settings }
 
-export interface Settings { theme: "system" | "light" | "dark"; same_tab: boolean }
+export interface Settings { theme: "system" | "light" | "dark"; same_tab: boolean; language: "en" | "hi" }
 
 export interface HistoryItem { target: string; risk_score: number | null; risk_label: string | null; verdict: string; scanned_at: number }
 

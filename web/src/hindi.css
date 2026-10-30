@@ -1,0 +1,13 @@
+/* Hindi text. unicode-range means browsers download these only when a page has Hindi on it. */
+@font-face {
+  font-family: "Noto Sans Devanagari"; font-weight: 400; font-display: swap; unicode-range: U+0900-097F, U+1CD0-1CFF, U+200C-200D, U+A8E0-A8FF;
+  src: url("./fonts/NotoSansDevanagari-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Noto Sans Devanagari"; font-weight: 600; font-display: swap; unicode-range: U+0900-097F, U+1CD0-1CFF, U+200C-200D, U+A8E0-A8FF;
+  src: url("./fonts/NotoSansDevanagari-SemiBold.woff2") format("woff2");
+}
+/* Letter spacing pulls Hindi letters apart, and tight headings clip the vowel signs above and below. */
+html[lang="hi"] * { letter-spacing: 0 !important; }
+html[lang="hi"] h1, html[lang="hi"] h2, html[lang="hi"] .small-h1 { line-height: 1.3; }
+html[lang="hi"] .auth-title, html[lang="hi"] .main-result { line-height: 1.4; }

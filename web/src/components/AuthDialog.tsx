@@ -2,21 +2,22 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAccount, type AuthMode } from "../account";
 import * as backend from "../api";
+import { tk, useT, withSlots } from "../i18n";
 import { GlassDialog, GoogleLogo, Icon, Logo } from "./ui";
 
 const EMAIL = /^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$/;
 
 const MODES: Record<AuthMode, { title: string; intro: string; submit: string; email: boolean; password: string | null; autocomplete?: string }> = {
-  signup: { title: "Create your account", intro: "", submit: "Create account",
-            email: true, password: "Password", autocomplete: "new-password" },
-  login: { title: "Welcome back", intro: "", submit: "Log in", email: true,
-           password: "Password", autocomplete: "current-password" },
-  forgot: { title: "Reset your password", intro: "We'll email you a link to choose a new password.",
-            submit: "Send reset link", email: true, password: null },
-  verify: { title: "Confirm your email", intro: "Enter the password you chose when you signed up.",
-            submit: "Confirm email", email: false, password: "Password", autocomplete: "current-password" },
-  reset: { title: "Choose a new password", intro: "Setting a new password signs you out on all your other devices.",
-           submit: "Set password", email: false, password: "New password", autocomplete: "new-password" },
+  signup: { title: tk("Create your account"), intro: "", submit: tk("Create account"),
+            email: true, password: tk("Password"), autocomplete: "new-password" },
+  login: { title: tk("Welcome back"), intro: "", submit: tk("Log in"), email: true,
+           password: tk("Password"), autocomplete: "current-password" },
+  forgot: { title: tk("Reset your password"), intro: tk("We'll email you a link to choose a new password."),
+            submit: tk("Send reset link"), email: true, password: null },
+  verify: { title: tk("Confirm your email"), intro: tk("Enter the password you chose when you signed up."),
+            submit: tk("Confirm email"), email: false, password: tk("Password"), autocomplete: "current-password" },
+  reset: { title: tk("Choose a new password"), intro: tk("Setting a new password signs you out on all your other devices."),
+           submit: tk("Set password"), email: false, password: tk("New password"), autocomplete: "new-password" },
 };
 
 /** 0 to 4 bars. Length matters most; mixing kinds of characters adds a little. Nothing is sent anywhere. */
@@ -36,6 +37,7 @@ function webmailFor(email: string): string | null {
 
 export function AuthDialog() {
   const { auth, openAuth, closeAuth, googleSignin, setAccount, applySettings, saveSettings, settings } = useAccount();
+  const t = useT();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -50,20 +52,20 @@ export function AuthDialog() {
   const emailOk = EMAIL.test(email.trim());
   const strength = passwordStrength(password);
 
-  useEffect(() => { setError(auth?.error ?? ""); setSent(null); setPassword(""); setPeek(false); }, [auth]);
+  useEffect(() => { setError(t(auth?.error ?? "")); setSent(null); setPassword(""); setPeek(false); }, [auth]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (mode === "signup" && !name.trim()) {
-      setError("Enter your name.");
+      setError(t("Enter your name."));
       return;
     }
     if ((m.email && !email.trim()) || (m.password && !password)) {
-      setError(m.email && m.password ? "Enter your email and password." : m.email ? "Enter your email." : "Enter your password.");
+      setError(t(m.email && m.password ? "Enter your email and password." : m.email ? "Enter your email." : "Enter your password."));
       return;
     }
     if ((mode === "signup" || mode === "reset") && password.length < 10) {
-      setError("Use a password of at least 10 characters.");
+      setError(t("Use a password of at least 10 characters."));
       return;
     }
     setBusy(true);
@@ -95,14 +97,14 @@ export function AuthDialog() {
 
   const webmail = sent && webmailFor(sent.to);
   return (
-    <GlassDialog open={!!auth} onClose={closeAuth} label={sent ? "Check your inbox" : m.title} className="auth-card">
+    <GlassDialog open={!!auth} onClose={closeAuth} label={t(sent ? "Check your inbox" : m.title)} className="auth-card">
       <aside className="auth-side">
         <div className="logo"><Logo />Artemis</div>
-        <h2>{mode === "login" ? "Good to see you again." : "Keep every check in one place."}</h2>
+        <h2>{t(mode === "login" ? "Good to see you again." : "Keep every check in one place.")}</h2>
         <ul className="perks">
-          <li><span className="perk-icon"><Icon name="history" /></span><div><b>Your scan history</b></div></li>
-          <li><span className="perk-icon"><Icon name="sync" /></span><div><b>Settings on every device</b></div></li>
-          <li><span className="perk-icon"><Icon name="speed" /></span><div><b>30 checks a minute</b><span>Instead of 10</span></div></li>
+          <li><span className="perk-icon"><Icon name="history" /></span><div><b>{t("Your scan history")}</b></div></li>
+          <li><span className="perk-icon"><Icon name="sync" /></span><div><b>{t("Settings on every device")}</b></div></li>
+          <li><span className="perk-icon"><Icon name="speed" /></span><div><b>{t("30 checks a minute")}</b><span>{t("Instead of 10")}</span></div></li>
         </ul>
       </aside>
 
@@ -110,40 +112,40 @@ export function AuthDialog() {
         {sent ? (
           <div className="sent-view" role="status">
             <div className="mail-badge"><Icon name="mail" /></div>
-            <h1 className="auth-title">Check your inbox</h1>
-            <p className="auth-intro">{sent.kind === "signup" ? "We sent a link to" : "If there's an account for this address, we sent a reset link to"}</p>
+            <h1 className="auth-title">{t("Check your inbox")}</h1>
+            <p className="auth-intro">{t(sent.kind === "signup" ? "We sent a link to" : "If there's an account for this address, we sent a reset link to")}</p>
             <span className="email-chip">{sent.to}</span>
-            <p className="auth-intro">{sent.kind === "signup" ? "The link works for 24 hours." : "The link works for 1 hour."}</p>
+            <p className="auth-intro">{t(sent.kind === "signup" ? "The link works for 24 hours." : "The link works for 1 hour.")}</p>
             <div className="sent-actions">
-              {webmail && <a className="btn-glass" href={webmail} target="_blank" rel="noopener noreferrer">Open your inbox</a>}
+              {webmail && <a className="btn-glass" href={webmail} target="_blank" rel="noopener noreferrer">{t("Open your inbox")}</a>}
               <button className="btn-glass" type="button" onClick={() => { setSent(null); openAuth(sent.kind === "signup" ? "signup" : "forgot"); }}>
-                Use a different email</button>
+                {t("Use a different email")}</button>
             </div>
-            <p className="fine">Not there? Check your spam folder.</p>
+            <p className="fine">{t("Not there? Check your spam folder.")}</p>
           </div>
         ) : (
           <>
             {tabs ? (
               <div className={`slide-tabs${mode === "login" ? " right" : ""}`} role="tablist">
                 <span className="slide-thumb" />
-                <button type="button" role="tab" aria-selected={mode === "signup"} onClick={() => openAuth("signup")}>Sign up</button>
-                <button type="button" role="tab" aria-selected={mode === "login"} onClick={() => openAuth("login")}>Log in</button>
+                <button type="button" role="tab" aria-selected={mode === "signup"} onClick={() => openAuth("signup")}>{t("Sign up")}</button>
+                <button type="button" role="tab" aria-selected={mode === "login"} onClick={() => openAuth("login")}>{t("Log in")}</button>
               </div>
             ) : mode === "forgot" ? (
-              <button className="back-link" type="button" onClick={() => openAuth("login")}><Icon name="back" />Back to log in</button>
+              <button className="back-link" type="button" onClick={() => openAuth("login")}><Icon name="back" />{t("Back to log in")}</button>
             ) : null}
-            <h1 className="auth-title">{m.title}</h1>
-            {m.intro && <p className="auth-intro">{m.intro}</p>}
+            <h1 className="auth-title">{t(m.title)}</h1>
+            {m.intro && <p className="auth-intro">{t(m.intro)}</p>}
 
             {google && <>
-              <a className="google-btn" href="/api/auth/google"><GoogleLogo />Continue with Google</a>
-              <div className="or-line">or</div>
+              <a className="google-btn" href="/api/auth/google"><GoogleLogo />{t("Continue with Google")}</a>
+              <div className="or-line">{t("or")}</div>
             </>}
 
             <form onSubmit={submit} noValidate>
               {mode === "signup" && (
                 <div className="gfield">
-                  <label htmlFor="auth-name">Name</label>
+                  <label htmlFor="auth-name">{t("Name")}</label>
                   <div className="gcontrol">
                     <Icon name="user" />
                     <input id="auth-name" type="text" autoComplete="name" maxLength={80} value={name}
@@ -153,7 +155,7 @@ export function AuthDialog() {
               )}
               {m.email && (
                 <div className="gfield">
-                  <label htmlFor="auth-email">Email</label>
+                  <label htmlFor="auth-email">{t("Email")}</label>
                   <div className={`gcontrol${email && emailOk ? " ok" : ""}`}>
                     <Icon name="mail" />
                     <input id="auth-email" type="email" autoComplete="email" maxLength={254} value={email} placeholder="you@example.com"
@@ -165,33 +167,36 @@ export function AuthDialog() {
               {m.password && (
                 <div className="gfield">
                   <div className="gfield-head">
-                    <label htmlFor="auth-password">{m.password}</label>
-                    {mode === "login" && <button type="button" className="text-link" onClick={() => openAuth("forgot")}>Forgot password?</button>}
+                    <label htmlFor="auth-password">{t(m.password)}</label>
+                    {mode === "login" && <button type="button" className="text-link" onClick={() => openAuth("forgot")}>{t("Forgot password?")}</button>}
                   </div>
                   <div className="gcontrol">
                     <Icon name="lock" />
                     <input id="auth-password" type={peek ? "text" : "password"} autoComplete={m.autocomplete} maxLength={128} value={password}
                       onChange={(e) => setPassword(e.target.value)} autoFocus={!m.email} />
-                    <button className="peek" type="button" onClick={() => setPeek(!peek)} aria-pressed={peek}>{peek ? "Hide" : "Show"}</button>
+                    <button className="peek" type="button" onClick={() => setPeek(!peek)} aria-pressed={peek}>{t(peek ? "Hide" : "Show")}</button>
                   </div>
                   {(mode === "signup" || mode === "reset") && <>
                     <div className="meter" aria-hidden="true">{[1, 2, 3, 4].map((n) => <i key={n} className={strength >= n ? (strength < 2 ? "weak" : "on") : ""} />)}</div>
                     <p className={`hint${password.length >= 10 ? " good" : ""}`}>
                       {password.length >= 10 && <Icon name="check" className="icon good" />}
-                      At least 10 characters
+                      {t("At least 10 characters")}
                     </p>
                   </>}
                 </div>
               )}
               {error && <p className="form-error" role="alert">{error}</p>}
-              <button className="btn-solid" type="submit" disabled={busy}>{busy ? "One moment" : m.submit}</button>
+              <button className="btn-solid" type="submit" disabled={busy}>{t(busy ? "One moment" : m.submit)}</button>
               {(mode === "signup" || google) && (
                 <p className="fine">
-                  By {google ? "creating an account or continuing with Google" : "creating an account"}, you agree to
-                  the <a href="/terms" target="_blank" rel="noopener">Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy policy</a>.
+                  {withSlots(t(google ? "By creating an account or continuing with Google, you agree to the {terms} and {privacy}."
+                    : "By creating an account, you agree to the {terms} and {privacy}."), {
+                    terms: <a key="terms" href="/terms" target="_blank" rel="noopener">{t("Terms")}</a>,
+                    privacy: <a key="privacy" href="/privacy" target="_blank" rel="noopener">{t("Privacy policy")}</a>,
+                  })}
                 </p>
               )}
-              {mode === "forgot" && <p className="fine">Signed up with Google? You don't need a password: use Continue with Google instead.</p>}
+              {mode === "forgot" && <p className="fine">{t("Signed up with Google? You don't need a password: use Continue with Google instead.")}</p>}
             </form>
           </>
         )}

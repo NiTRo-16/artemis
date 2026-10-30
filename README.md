@@ -37,6 +37,10 @@ Each category gets a grade, and the site gets an overall risk score of Low, Medi
 - **QR check** (`/qr`). Reads a QR screenshot in the browser, so the image is never uploaded, then runs the
   payment or link check on what the code contains.
 
+**Languages**
+
+English and Hindi, chosen in Settings. Text lives in `web/src/hi.json`, keyed by the English, and tests fail if any is missing. Message check also recognises scams written in Hindi. Detailed scan reasons, legal pages and account emails are in English for now. The option is hidden until `HINDI_PUBLIC` in `web/src/i18n.ts` is turned on; `/?hindi=1` shows it in one browser for review. Noto Sans Devanagari is under the SIL Open Font License (`web/src/fonts/`).
+
 **Domain watch**
 
 `watcher.py` reads Let's Encrypt's public certificate logs (`ct_logs.py`), matches new names against the brand list

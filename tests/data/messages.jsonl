@@ -42,3 +42,26 @@
 {"genuine": true, "text": "Happy birthday! Hope you have a wonderful day. Party at my place tonight."}
 {"genuine": true, "text": "Your electricity bill of Rs 840 is due on 5 Nov. Pay on the official app to avoid a late fee."}
 {"genuine": true, "text": "Update your email address in your profile at any time from the settings page."}
+{"text": "प्रिय ग्राहक, आपका एसबीआई खाता आज बंद हो जाएगा। तुरंत केवाईसी अपडेट करें: sbi-kyc.top/update", "script": "account_block"}
+{"text": "आपका केवाईसी समाप्त हो गया है। 24 घंटे में पूरा करें वरना नेट बैंकिंग ब्लॉक हो जाएगी।", "script": "account_block"}
+{"text": "प्रिय उपभोक्ता, आज रात 9:30 बजे आपकी बिजली कट जाएगी। बिल अपडेट के लिए तुरंत कॉल करें।", "script": "electricity"}
+{"text": "इंडिया पोस्ट: आपका पार्सल अधूरा पता होने के कारण रोक दिया गया है। 25 रुपये शुल्क दें।", "script": "parcel"}
+{"text": "आप डिजिटल अरेस्ट में हैं। किसी को न बताएं और पैसे ट्रांसफर करें।", "script": "digital_arrest"}
+{"text": "मुंबई पुलिस ने आपके नाम पर मामला दर्ज किया है। वारंट जारी हो चुका है।", "script": "digital_arrest"}
+{"text": "रिफंड के लिए अपना यूपीआई पिन डालें, पैसा तुरंत मिल जाएगा।", "script": "pay_to_receive"}
+{"text": "बधाई हो! आपने केबीसी लकी ड्रॉ में 25 लाख रुपये जीते हैं।", "script": "prize"}
+{"text": "आपके मोबाइल पर जो ओटीपी आया है वह बताएं, तभी रिफंड होगा।", "script": "asks_secret"}
+{"text": "कस्टमर केयर: एनीडेस्क डाउनलोड करके कोड भेजिए, हम समस्या ठीक कर देंगे।", "script": "screen_share"}
+{"text": "आरटीओ चालान लंबित है। यह एपीके डाउनलोड करें: rto-challan.example/app", "script": "app_link"}
+{"text": "घर बैठे कमाई करें! रोज 3000 रुपये, अभी मैसेज करें।", "script": "job", "level": "caution"}
+{"text": "गारंटी के साथ मुनाफा, एक महीने में पैसा डबल।", "script": "investment", "level": "caution"}
+{"text": "बिना दस्तावेज तुरंत लोन पाएं, अभी आवेदन करें।", "script": "loan", "level": "caution"}
+{"text": "मम्मी यह मेरा नया नंबर है, मैं मुश्किल में हूं, जल्दी पैसे भेज दो।", "script": "family", "level": "caution"}
+{"genuine": true, "text": "आपका ओटीपी 4432 है। इसे किसी के साथ साझा न करें। बैंक कभी ओटीपी नहीं मांगता।"}
+{"genuine": true, "text": "सावधान: बैंक कभी आपसे पिन या ओटीपी नहीं पूछता। ऐसे कॉल से बचें।"}
+{"genuine": true, "text": "आपके खाते में 5000 रुपये जमा किए गए हैं। उपलब्ध शेष राशि 12,340 रुपये है।"}
+{"genuine": true, "text": "आपके अनुरोध पर आपका डेबिट कार्ड बंद कर दिया गया है। जानकारी के लिए शाखा से संपर्क करें।"}
+{"genuine": true, "text": "रखरखाव के कारण कल सुबह 10 से 12 बजे तक बिजली बंद रहेगी।"}
+{"genuine": true, "text": "आपका पार्सल आज शाम तक पहुंच जाएगा। धन्यवाद।"}
+{"genuine": true, "text": "आपका 840 रुपये का बिजली बिल 5 नवंबर को देय है। कृपया आधिकारिक ऐप पर भुगतान करें।"}
+{"genuine": true, "text": "कल शाम को खाना साथ खाएंगे, मैं सात बजे घर आ जाऊंगा।"}
