@@ -34,6 +34,7 @@ services:
       DATABASE_URL: postgresql://artemis:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/artemis
       REDIS_URL: redis://redis:6379/0
       RATE_LIMIT_SECRET: ${RATE_LIMIT_SECRET:?Set RATE_LIMIT_SECRET in .env}
+      WATCH_PUBLIC: ${WATCH_PUBLIC:-0}
     volumes:
       # The old SQLite database, read once by tools/migrate_sqlite.py. Accounts now live in Postgres.
       - artemis_data:/app/data
@@ -71,8 +72,39 @@ services:
       URLHAUS_AUTH_KEY: ${URLHAUS_AUTH_KEY:-}
       ARTEMIS_CHROMIUM_SANDBOX: ${ARTEMIS_CHROMIUM_SANDBOX:-1}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+      WATCH_PUBLIC: ${WATCH_PUBLIC:-0}
     healthcheck:
       disable: true                # the app's /healthz reports whether a worker is alive
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - egress
+      - data
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # Domain watch: reads certificate logs. One only; limited so it can't take CPU from scans.
+  watcher:
+    build: .
+    command: ["python", "watcher.py"]
+    restart: unless-stopped
+    init: true
+    cpus: 1.0
+    mem_limit: 512m
+    pids_limit: 64
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DATABASE_URL: postgresql://artemis:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/artemis
+      REDIS_URL: redis://redis:6379/0
+      WATCH_SCANS: ${WATCH_SCANS:-0}
+    healthcheck:
+      disable: true
     depends_on:
       postgres:
         condition: service_healthy

@@ -18,10 +18,12 @@ from urllib.parse import urlsplit
 import httpx
 import tldextract
 
+import db
 from brands import BRANDS
 
 log = logging.getLogger("artemis.impersonation")
 
+WATCH_PUBLIC = os.environ.get("WATCH_PUBLIC") == "1"
 OPENPHISH_FEED = "https://raw.githubusercontent.com/openphish/public_feed/refs/heads/main/feed.txt"
 FEED_TTL = 1800            # seconds between feed refreshes
 FEED_RETRY = 300           # retry sooner after a failed refresh
@@ -314,20 +316,31 @@ def lookalike_brand(host: str) -> str | None:
     return hit[2] if hit else None
 
 
+async def watch_first_seen(registrable: str) -> int | None:
+    """When Domain watch first saw this domain's certificate. Optional: never lets a scan fail."""
+    if not WATCH_PUBLIC:
+        return None
+    try:
+        return await asyncio.to_thread(db.watch_first_seen, registrable)
+    except Exception:
+        return None
+
+
 async def lookup_records(host: str, link: str | None = None) -> dict:
     """Registration, certificate history and blocklist results for a host (and the exact link, if given)."""
     registrable = registrable_domain(host)
     # Only fixed third-party services are called here, never the scanned host, so redirects are safe to follow.
     async with httpx.AsyncClient(timeout=12.0, follow_redirects=True,
                                  headers={"User-Agent": "ArtemisScanner/0.2"}) as client:
-        reg, cert, *lists = await asyncio.gather(
+        reg, cert, watched, *lists = await asyncio.gather(
             registration(client, registrable),
             earliest_certificate(client, registrable),
+            watch_first_seen(registrable),
             check_openphish(client, host, link),
             check_safe_browsing(client, host),
             check_urlhaus(client, host),
         )
-    return {"registration": reg, "certificate": cert, "lists": lists}
+    return {"registration": reg, "certificate": cert, "lists": lists, "watch_first_seen": watched}
 
 
 _url_model_failed = False
@@ -402,6 +415,11 @@ def assess(host: str, records: dict, page_signals: list[dict] | None = None, pag
     cert_days = (now - first_cert).days if first_cert else None
     if cert_days is not None and cert_days < 30 and (age_days is None or age_days < 365):
         signal(10, "amber", f"First TLS certificate issued {age_text(cert_days)}")
+
+    watched = records.get("watch_first_seen")
+    if watched and not brand:   # no points: the name is already scored by the lookalike check
+        seen = datetime.fromtimestamp(watched, timezone.utc)
+        signal(0, "info", f"A certificate for this name first appeared in public logs on {seen.day} {seen:%B %Y}.")
 
     listed = [entry for entry in lists if entry["status"] == "listed"]
     for entry in reversed(listed):

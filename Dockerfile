@@ -21,7 +21,7 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY main.py db.py mail.py google_auth.py netsafety.py scanner.py impersonation.py clone.py render.py brands.py \
-     payments.py reports.py store.py ratelimit.py jobs.py worker.py messages.py ./
+     payments.py reports.py store.py ratelimit.py jobs.py worker.py messages.py ct_logs.py watch_match.py watcher.py ./
 COPY privacy.html terms.html legal.css ./
 COPY fonts ./fonts
 COPY migrations ./migrations

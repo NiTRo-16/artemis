@@ -65,10 +65,14 @@ log tiles -> watcher -> matcher -> watch_domains (Postgres) -> capped scans (exi
 - Only names that pass go through the existing `brand_lookalike`, so the wording and rules stay in one place.
   Accepted limit: typos beyond one edit, which `brand_lookalike` would catch, are missed by the watcher.
 - A brand's own domains are skipped using `official_brand`.
-- **Short keywords need a second clue.** "sbi", "visa", "chase" and "amex" appear in many innocent names. They
-  count only as a whole word and alongside a word like login, kyc, verify, secure, bank, pay, update or
-  reward, or a TLD in `RISKY_TLDS`. Keywords of 6 or more letters count on their own.
+- **Loose keywords need a second clue.** Short ones ("sbi", "visa", "amex") and everyday words ("ledger",
+  "outlook", "icloud") count only as a whole word in the registered part of the name, alongside a word like
+  login, kyc, verify, secure, bank, pay, update or reward, or a TLD in `RISKY_TLDS`. Other keywords count on their
+  own, as do the short but distinctive "hdfc", "icici", "paytm" and "npci".
+- A brand's real address at the start of someone else's (`support.zoom.us.tokovpn.com`) always counts.
 - Tested against real names from the logs, since the false-match rate decides whether the counts mean anything.
+  On 76,800 real entries on 30 October 2026, these rules gave about 90 matches, or roughly 40,000 a day before
+  repeats. Many look suspicious and some are innocent.
 
 ### `watcher.py`: the service
 
@@ -93,6 +97,8 @@ certificates it gets.
 
 - A small loop in the watcher queues unscanned domains that are at least 10 minutes old, since a certificate
   often comes before the site.
+- **Indian brands first, then newest.** Far more names match than can be scanned, mostly global brands, so
+  otherwise almost no scan would go on the names Artemis exists to protect.
 - Starts at **1,000 a day**. The limit isn't the queue but the outside services each scan calls (crt.sh, RDAP,
   Safe Browsing). It also pauses while the queue is busy, so people's scans always come first.
 - Saves one outcome: `offline`, `no_form`, `login_or_card_form` or `flagged` (the risk result, no page content).
@@ -107,8 +113,7 @@ When a scanned domain is in `watch_domains`, the impersonation card shows an inf
 for this name first appeared in public logs on <date>." It **adds no risk points**: the name is already scored
 by the lookalike check, and counting it twice would inflate risk for innocent businesses.
 
-The benefit is a dependable first-seen date when crt.sh is slow or down, and a quick answer when the capped scan
-already ran. It isn't a new detection on its own, and it mustn't be described as one.
+The benefit is a dependable first-seen date when crt.sh is slow or down. It isn't a new detection on its own, and it mustn't be described as one.
 
 ### `/watch` page and `GET /api/watch/summary`
 
@@ -136,7 +141,7 @@ domains aren't published. Contact details stay as they are.
 | Malformed entry | Counted and skipped |
 | Falls behind by over 1 hour | Jumps ahead and records the gap |
 | Postgres down | Watcher waits and retries; nothing in the scan path depends on it |
-| Matcher floods (a brand over 2,000 a day) | Logged and scanning for that brand paused for the day, as it points to a bad rule |
+| Matcher floods (a brand over 20,000 a day; the busiest measured about 8,000) | Logged and scanning for that brand paused for the day, as it points to a bad rule |
 | Watch lookup fails during a scan | The line is left out; the scan is unaffected |
 
 ## Testing

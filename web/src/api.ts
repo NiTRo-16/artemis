@@ -32,6 +32,17 @@ export const getScan = (id: string) =>
 export const shareScan = (id: string) => api<{ url: string }>(`/api/scans/${encodeURIComponent(id)}/share`, { method: "POST" });
 export const getShared = (id: string) => api<Report>(`/api/shared/${encodeURIComponent(id)}`);
 
+export type WatchSummary = {
+  public: boolean;
+  brands: { brand: string; matches: number; forms: number; listed: number; checked: number }[];
+  logs: string[];
+  last_read: number | null;
+  last_gap: number | null;
+  stopped: boolean;
+  just_started: boolean;
+};
+export const getWatchSummary = () => api<WatchSummary>("/api/watch/summary");
+
 export const me = () => api<{ account: Account | null; google_signin: boolean }>("/api/me");
 export const signup = (email: string, password: string) => api("/api/signup", { method: "POST", body: { email, password } });
 export const login = (email: string, password: string) => api<Account>("/api/login", { method: "POST", body: { email, password } });

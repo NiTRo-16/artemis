@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Stre
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+import ct_logs
 import db
 import google_auth
 import jobs
@@ -25,6 +26,7 @@ import mail
 import messages
 import render
 import store
+from brands import BRANDS
 from impersonation import check_impersonation
 from payments import UPI_ID, is_upi, parse_upi, upi_report
 from ratelimit import RateLimiter
@@ -41,6 +43,9 @@ MAX_BODY_BYTES = 64 * 1024        # largest accepted request body; every API bod
 MAX_CONCURRENT_CHECKS = 16        # extension checks at once
 RECENT_SIGNIN_SECONDS = 15 * 60   # accounts without a password must have signed in this recently to delete
 INLINE_SCANS = os.environ.get("ARTEMIS_INLINE_SCANS") == "1"   # run jobs in this process (tests, local dev without a worker)
+WATCH_PUBLIC = os.environ.get("WATCH_PUBLIC") == "1"   # Domain watch's page and its line in results
+WATCH_WEEK = 7 * 86400
+WATCH_STOPPED = 3600              # no log read for this long: the page says so
 JOB_ID = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
 CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")   # all but tab and newline
@@ -722,6 +727,34 @@ def _serve(path: Path):
     # Tell browsers not to reuse a stored copy without checking, so visitors never run an outdated page.
     # (FileResponse sends the full file each time; pages are small, so that's fine.)
     return lambda: FileResponse(path, headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/api/watch/summary")
+def watch_summary() -> dict:
+    """Domain watch's public numbers. Never names a domain."""
+    if not WATCH_PUBLIC:
+        return {"public": False}
+    r = store.sync_client()
+    cached = r.get("watch:summary")
+    if cached:
+        return json.loads(cached)
+    now = int(time.time())
+    counts = {row["brand"]: row for row in db.watch_brand_counts(now - WATCH_WEEK)}
+    brands = [{"brand": name, **{k: counts.get(name, {}).get(k, 0) for k in ("matches", "forms", "listed", "checked")}}
+              for name, _, _ in BRANDS]
+    brands.sort(key=lambda b: (-b["matches"], b["brand"]))
+    logs = db.watch_logs_read()
+    last_read = max((row["last_read"] for row in logs), default=None)
+    started = min((row["started"] for row in logs), default=None)
+    gaps = [row["last_gap"] for row in logs if row["last_gap"] and row["last_gap"] >= now - WATCH_WEEK]
+    summary = {
+        "public": True, "brands": brands, "last_read": last_read, "last_gap": max(gaps, default=None),
+        "stopped": last_read is None or last_read < now - WATCH_STOPPED,
+        "just_started": started is None or started > now - 86400,
+        "logs": ["Let's Encrypt " + name.title().replace("20", " 20", 1) for name, _, _ in ct_logs.LOGS],
+    }
+    r.set("watch:summary", json.dumps(summary), ex=300)
+    return summary
 
 
 # Windows reads these from the registry, which may lack or mislabel them; set them explicitly.

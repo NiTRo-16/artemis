@@ -11,6 +11,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { QrPage } from "./pages/QrPage";
 import { ResultPage, SharedPage } from "./pages/ResultPage";
 import { ScanPage } from "./pages/ScanPage";
+import { WatchPage } from "./pages/WatchPage";
 
 /** Links from account emails: /verify#<token> and /reset#<token>. The token sits after "#" so it never
  *  reaches the server's logs; take it, then clean the address bar so it isn't left in history. */
@@ -37,7 +38,7 @@ export function App() {
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/messages" element={<MessagePage />} />
         <Route path="/qr" element={<QrPage />} />
-        <Route path="/watch" element={<ComingSoonPage tool="watch" />} />
+        <Route path="/watch" element={<WatchPage />} />
         <Route path="/developers" element={<ComingSoonPage tool="developers" />} />
         <Route path="/verify" element={<EmailLink mode="verify" />} />
         <Route path="/reset" element={<EmailLink mode="reset" />} />

@@ -80,7 +80,7 @@ def reset_for_tests() -> None:
         name = c.execute("SELECT current_database() AS name").fetchone()["name"]
         if not name.endswith("_test"):
             raise RuntimeError(f"reset_for_tests refused: {name!r} isn't a test database")
-        c.execute("TRUNCATE users, sessions, scans, email_tokens, reports, shared_results RESTART IDENTITY CASCADE")
+        c.execute("TRUNCATE users, sessions, scans, email_tokens, reports, shared_results, watch_domains, watch_logs RESTART IDENTITY CASCADE")
 
 
 def _exec(sql: str, params: tuple = ()) -> int:
@@ -339,3 +339,87 @@ def share_result(result_id: str, report: dict) -> None:
 def shared_result(result_id: str) -> dict | None:
     row = _one("SELECT report FROM shared_results WHERE id = %s AND expires_at > %s", (result_id, int(time.time())))
     return row and row["report"]
+
+
+# ---------- Domain watch ----------
+
+def watch_log(name: str) -> dict | None:
+    return _one("SELECT * FROM watch_logs WHERE name = %s", (name,))
+
+
+def start_watch_log(name: str, position: int, now: int) -> None:
+    _exec("INSERT INTO watch_logs (name, position, started, last_read) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+          (name, position, now, now))
+
+
+def save_watch_log(name: str, position: int, now: int, entries: int, malformed: int, gap: bool = False) -> None:
+    _exec("UPDATE watch_logs SET position = %s, last_read = %s, entries_read = entries_read + %s, "
+          "malformed = malformed + %s, gaps = gaps + %s, last_gap = CASE WHEN %s THEN %s ELSE last_gap END WHERE name = %s",
+          (position, now, entries, malformed, int(gap), gap, now, name))
+
+
+def add_watch_domains(rows: list[dict]) -> None:
+    """A domain is stored once, however many certificates it gets."""
+    if not rows:
+        return
+    with pool().connection() as c, c.cursor() as cur:
+        cur.executemany("INSERT INTO watch_domains (registrable, brand, reason, host, log, first_seen) "
+                        "VALUES (%(registrable)s, %(brand)s, %(reason)s, %(host)s, %(log)s, %(first_seen)s) "
+                        "ON CONFLICT DO NOTHING", rows)
+
+
+def watch_first_seen(registrable: str) -> int | None:
+    """When a domain's certificate first appeared. A short wait: a scan must not stall on this."""
+    with pool().connection(timeout=2.0) as c:
+        row = c.execute("SELECT first_seen FROM watch_domains WHERE registrable = %s", (registrable,)).fetchone()
+    return row["first_seen"] if row else None
+
+
+def next_watch_scan(ready_before: int, flood_since: int, flood_limit: int, first_brands: list[str]) -> dict | None:
+    """The suspect domain due its one scan, first_brands first and then newest, skipping any brand matching implausibly many names."""
+    return _one("SELECT registrable, host FROM watch_domains WHERE scan_job IS NULL AND outcome IS NULL "
+                "AND first_seen <= %s AND brand NOT IN (SELECT brand FROM watch_domains WHERE first_seen >= %s "
+                "GROUP BY brand HAVING count(*) > %s) ORDER BY brand = ANY(%s) DESC, first_seen DESC LIMIT 1",
+                (ready_before, flood_since, flood_limit, first_brands))
+
+
+def set_watch_scan(registrable: str, job_id: str, now: int) -> None:
+    _exec("UPDATE watch_domains SET scan_job = %s, scan_time = %s WHERE registrable = %s", (job_id, now, registrable))
+
+
+def set_watch_outcome(registrable: str, outcome: str) -> None:
+    _exec("UPDATE watch_domains SET outcome = %s WHERE registrable = %s", (outcome, registrable))
+
+
+def watch_scans_running() -> list[dict]:
+    return _all("SELECT registrable, scan_job FROM watch_domains WHERE scan_job IS NOT NULL AND outcome IS NULL")
+
+
+def watch_scans_since(since: int) -> int:
+    return _one("SELECT count(*) AS n FROM watch_domains WHERE scan_time >= %s", (since,))["n"]
+
+
+def expire_watch_scans(before: int) -> None:
+    _exec("UPDATE watch_domains SET outcome = 'not_checked' WHERE scan_job IS NULL AND outcome IS NULL AND first_seen < %s",
+          (before,))
+
+
+def purge_watch_domains(before: int) -> None:
+    _exec("DELETE FROM watch_domains WHERE first_seen < %s", (before,))
+
+
+def watch_outcomes() -> dict[str, int]:
+    return {row["outcome"]: row["n"] for row in
+            _all("SELECT outcome, count(*) AS n FROM watch_domains WHERE outcome IS NOT NULL GROUP BY outcome")}
+
+
+def watch_brand_counts(since: int) -> list[dict]:
+    return _all("SELECT brand, count(*) AS matches, "
+                "count(*) FILTER (WHERE outcome = 'login_or_card_form') AS forms, "
+                "count(*) FILTER (WHERE outcome = 'flagged') AS listed, "
+                "count(*) FILTER (WHERE outcome IS NOT NULL AND outcome <> 'not_checked') AS checked "
+                "FROM watch_domains WHERE first_seen >= %s GROUP BY brand", (since,))
+
+
+def watch_logs_read() -> list[dict]:
+    return _all("SELECT name, started, last_read, gaps, last_gap FROM watch_logs ORDER BY name")

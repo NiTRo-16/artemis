@@ -37,6 +37,12 @@ Each category gets a grade, and the site gets an overall risk score of Low, Medi
 - **QR check** (`/qr`). Reads a QR screenshot in the browser, so the image is never uploaded, then runs the
   payment or link check on what the code contains.
 
+**Domain watch**
+
+`watcher.py` reads Let's Encrypt's public certificate logs (`ct_logs.py`), matches new names against the brand list
+(`watch_match.py`) and scans each suspect domain once, at most 1,000 a day. `/watch` shows counts per brand and never
+names a domain. `WATCH_SCANS=1` turns on the scans and `WATCH_PUBLIC=1` opens the page and the line in scan results.
+
 **Payments**
 
 Results include a Payment section whenever a payment is involved, with a verdict of "No payment warning

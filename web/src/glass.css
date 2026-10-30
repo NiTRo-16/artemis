@@ -187,7 +187,22 @@
 .qr-warning b { font-weight: 500; }
 .qr-warning .sub { margin: 4px 0 0; }
 
+.watch-totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 24px 0; }
+.watch-totals .card { display: grid; gap: 4px; }
+.watch-totals b { font-size: 30px; font-weight: 500; letter-spacing: -.02em; }
+.watch-totals span { color: var(--muted); font-size: 13.5px; }
+.table-wrap { overflow-x: auto; margin-top: 10px; }
+.watch-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.watch-table th, .watch-table td { padding: 10px 12px 10px 0; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; font-weight: 400; }
+.watch-table th:first-child { text-align: left; }
+.watch-table thead th { color: var(--muted); font-size: 12.5px; }
+.watch-table td { font-family: var(--mono); font-size: 13px; }
+.watch-table tbody th { font-family: inherit; font-size: 14px; letter-spacing: 0; text-transform: none; color: var(--fg); }
+.watch-notes { margin: 20px 0; }
+.watch-notes b { font-weight: 500; }
+
 @media (max-width: 900px) { .tool-split { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .watch-totals { grid-template-columns: 1fr; } }
 
 @media (max-width: 760px) {
   .auth-card { grid-template-columns: 1fr; }
