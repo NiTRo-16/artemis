@@ -5,7 +5,7 @@ import { useAccount } from "../account";
 import { getScan, getShared, shareScan } from "../api";
 import { tk, translate, useT } from "../i18n";
 import { ReportDialog, RiskDialog } from "../components/ReportDialogs";
-import { Icon, Rich } from "../components/ui";
+import { Icon, Rich, SafetyBanner } from "../components/ui";
 import { reportable, riskFactors, riskName, riskTone, safeUrl } from "../report";
 import type { Finding, Impersonation, Payment, Report } from "../types";
 
@@ -188,6 +188,7 @@ export function PaymentCard({ payment }: { payment: Payment }) {
   const t = useT();
   return (
     <section className={`card level-${payment.level}`}>
+      {payment.kind === "upi" && <SafetyBanner level={payment.level} />}
       <p className="eyebrow">{t(PAYMENT_KIND[payment.kind] ?? "Payment")}</p>
       <h3>{t(payment.verdict)}</h3>
       <p className="sub">{t(payment.summary)}</p>

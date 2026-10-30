@@ -69,6 +69,7 @@ describe("result page", () => {
   it("shows only the payment check for a UPI link, without a share button", () => {
     show(upi, null);
     expect(screen.getByText("Likely a payment scam", { selector: "h3" })).toBeTruthy();
+    expect(screen.getByText("Unsafe").className).toContain("bad");
     expect(screen.getByRole("button", { name: /Report this UPI ID/ })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Share result/ })).toBeNull();
     expect(screen.queryByText("Security checks")).toBeNull();

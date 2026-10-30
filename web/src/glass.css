@@ -154,6 +154,14 @@
 .tool-split { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; align-items: start; }
 .message-box { min-height: 220px; font-family: var(--mono); font-size: 14px; line-height: 1.6; }
 .tool-single { margin-top: 28px; max-width: 640px; }
+.safety-banner { display: inline-flex; align-items: center; gap: 7px; width: fit-content; margin: 0 0 10px; padding: 4px 10px; border-radius: 8px;
+  border: 1px solid; font-size: 12.5px; font-weight: 600; line-height: 1.4; }
+.safety-banner .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.safety-banner.ok { color: var(--good); background: var(--good-bg); border-color: color-mix(in srgb, var(--good) 35%, transparent); }
+.safety-banner.warn { color: var(--warn); background: var(--warn-bg); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.safety-banner.bad { color: var(--bad); background: var(--bad-bg); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
+.link-scan-side .safety-banner { margin: 0; white-space: nowrap; }
+.panel .safety-banner { margin-top: 14px; }
 .s-subhead { font-size: 14.5px; font-weight: 500; margin: 24px 0 10px; }
 .lang-choice { display: flex; gap: 10px; flex-wrap: wrap; }
 .lang-choice [aria-checked="true"] { border-color: var(--accent); color: var(--fg); }

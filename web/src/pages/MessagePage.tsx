@@ -5,7 +5,7 @@ import { api } from "../api";
 import { LinkScan } from "../components/LinkScan";
 import { useT } from "../i18n";
 import { highlight, overallLevel, type Level, type MessageResult } from "../messages";
-import { StatusTag } from "../components/ui";
+import { SafetyBanner, StatusTag } from "../components/ui";
 
 const MAX = 2000;
 const TAG: Record<Level, string> = { danger: "bad", caution: "warn", clear: "done" };
@@ -99,7 +99,7 @@ export function MessagePage() {
                             <div className="link-scan">
                               <div className="link-scan-text"><span className="link-value">{item.value}</span>
                                 <span className="small">{item.payment ? t("UPI: {verdict}. Your UPI app shows the registered name before you pay.", { verdict: t(item.payment.verdict) }) : t("This UPI link isn't valid.")}</span></div>
-                              <div className="link-scan-side"><StatusTag status={item.payment ? TAG[item.payment.level] : "skipped"} /></div>
+                              <div className="link-scan-side">{item.payment ? <SafetyBanner level={item.payment.level} /> : <StatusTag status="skipped" />}</div>
                             </div>
                           ) : (
                             <div className="link-scan">

@@ -103,6 +103,17 @@ export function StatusTag({ status }: { status?: string }) {
   return <span className={`status ${status ?? ""}`}>{status ? t(STATUS_WORD[status] ?? status.toUpperCase()) : "· · ·"}</span>;
 }
 
+const SAFETY: Record<string, [string, string]> = {
+  danger: ["bad", tk("Unsafe")], caution: ["warn", tk("Be careful")], clear: ["ok", tk("No warning signs")],
+};
+
+/** A UPI result at a glance. Green never says "safe": Artemis can't see who owns a UPI ID. */
+export function SafetyBanner({ level }: { level: string }) {
+  const t = useT();
+  const [tone, word] = SAFETY[level] ?? SAFETY.caution;
+  return <p className={`safety-banner ${tone}`}><span className="dot" />{t(word)}</p>;
+}
+
 /** The risk ring from the portfolio's analyzer: fills to the score, coloured by risk level. */
 export function RiskRing({ score, tone, scanning, label = "RISK" }:
   { score: number | null; tone: string; scanning?: boolean; label?: string }) {

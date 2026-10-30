@@ -5,7 +5,7 @@ import { useAccount } from "../account";
 import { startScan } from "../api";
 import { RiskDialog } from "../components/ReportDialogs";
 import { tk, useT, type Translate } from "../i18n";
-import { Icon, RiskRing, StatusTag } from "../components/ui";
+import { Icon, RiskRing, SafetyBanner, StatusTag } from "../components/ui";
 import { matchingRecent, rememberSearch, saveRecent } from "../recent";
 import { riskName, riskTone, safeUrl } from "../report";
 import type { Report, ScanEvent, StepStatus } from "../types";
@@ -163,7 +163,10 @@ export function ScanPage() {
           <span className="eyebrow">{!live ? "" : busy ? t("{done} of {total}", { done, total: STEPS.length }) : t(report ? "Finished" : "Stopped")}</span></div>
         {live && <div className="target"><Icon name="link" className="icon dim" /><span>{live.target}</span></div>}
         {report?.kind === "upi" ? (
-          <p className="note">{t(report.payment?.summary ?? "")}</p>
+          <>
+            <SafetyBanner level={report.payment?.level ?? "caution"} />
+            <p className="note">{t(report.payment?.summary ?? "")}</p>
+          </>
         ) : (
           <div className="gauge-row">
             <ul className="checks">
