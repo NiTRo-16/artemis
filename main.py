@@ -22,6 +22,7 @@ import db
 import google_auth
 import jobs
 import mail
+import messages
 import render
 import store
 from impersonation import check_impersonation
@@ -171,6 +172,7 @@ email_limiter = RateLimiter("email", 3600.0)        # 3 account emails an hour t
 report_limiter = RateLimiter("report", 3600.0)      # 10 site reports an hour per network
 repeat_report_limiter = RateLimiter("repeat_report", 86400.0)   # one report a day per site per network; repeats aren't counted
 share_limiter = RateLimiter("share", 3600.0)        # 30 shared results an hour per network
+message_limiter = RateLimiter("message", 60.0)      # 30 message checks a minute per network
 check_slots = asyncio.Semaphore(MAX_CONCURRENT_CHECKS)
 
 
@@ -613,6 +615,21 @@ async def run_scan(body: ScanRequest, request: Request) -> dict:
             raise HTTPException(state["code"], state["error"])
         await asyncio.sleep(0.25)
     raise HTTPException(504, "The scan timed out.")
+
+
+# ---------- message check ----------
+
+class MessageRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=messages.MAX_TEXT)
+
+
+@app.post("/api/messages")
+async def check_message(body: MessageRequest, request: Request) -> dict:
+    """Scam wording and the links, UPI IDs and phone numbers in a message. The text is never stored or logged."""
+    message_limiter.check(client_key(request), 30, "Too many checks. Try again in a minute.")
+    if not body.text.strip():
+        raise HTTPException(400, "Paste a message to check.")
+    return messages.check_message(body.text)
 
 
 # ---------- site reports ----------

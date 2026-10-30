@@ -160,6 +160,35 @@
 .menu-item .icon { color: var(--muted); }
 .menu-sep { height: 1px; background: var(--line); margin: 6px 4px; }
 
+/* ---------- message and QR checks ---------- */
+.tool-split { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; align-items: start; }
+.message-box { min-height: 220px; font-family: var(--mono); font-size: 14px; line-height: 1.6; }
+.tool-empty { border-style: dashed; }
+.verdict-line { margin-bottom: 8px; }
+.card.level-danger .status, .card.level-caution .status { min-width: 0; }
+.quoted { margin: 4px 0 12px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); font-family: var(--mono); font-size: 13px;
+  line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.quoted mark { background: var(--bad-bg); color: var(--bad); border-radius: 4px; padding: 1px 3px; }
+.found-items { list-style: none; display: grid; gap: 10px; margin-top: 12px; }
+.link-scan { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 12px; margin-top: 8px; }
+.found-items .link-scan { margin-top: 0; }
+.link-scan-text { min-width: 0; display: grid; gap: 3px; }
+.link-value { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+.link-scan-side { display: flex; align-items: center; gap: 8px; flex: none; }
+.dropzone { display: grid; justify-items: center; gap: 8px; padding: 56px 20px; text-align: center; cursor: pointer; border: 1.5px dashed var(--line-3);
+  border-radius: 16px; background: var(--glass-2); transition: border-color .15s, background .15s; }
+.dropzone:hover, .dropzone.over { border-color: var(--accent); background: rgba(79, 125, 255, .08); }
+.dropzone:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(79, 125, 255, .15); }
+.dropzone b { font-weight: 500; font-size: 15px; }
+.drop-icon { width: 34px; height: 34px; color: var(--accent-2); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.decoded { font-family: var(--mono); font-size: 13.5px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); overflow-wrap: anywhere; white-space: pre-wrap; }
+.qr-warning { border-color: color-mix(in srgb, var(--warn) 45%, var(--line-2)); }
+.qr-warning b { font-weight: 500; }
+.qr-warning .sub { margin: 4px 0 0; }
+
+@media (max-width: 900px) { .tool-split { grid-template-columns: 1fr; } }
+
 @media (max-width: 760px) {
   .auth-card { grid-template-columns: 1fr; }
   .auth-side { display: none; }

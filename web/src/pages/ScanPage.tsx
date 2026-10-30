@@ -1,6 +1,6 @@
 // Home: the scan box, and a live panel that fills in as each check finishes.
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { startScan } from "../api";
 import { Icon, RiskRing, StatusTag } from "../components/ui";
 import { matchingRecent, rememberSearch, saveRecent } from "../recent";
@@ -147,12 +147,15 @@ export function ScanPage() {
             </div>
           )}
           {error && <p className="form-error" role="alert">{error}</p>}
+          {target.trim().split(/\s+/).length >= 4 && (
+            <p className="note small">This looks like a whole message. <Link to="/messages" state={{ text: target }}>Check it with Message check</Link></p>
+          )}
         </form>
         <div className="accepts">
           <div className="accept"><Icon name="link" /><b>Websites</b><span>Domains and full links</span></div>
           <div className="accept"><Icon name="upi" /><b>UPI links</b><span>Payee, note and amount</span></div>
-          <div className="accept"><Icon name="msg" /><b>Messages</b><span>Coming soon</span></div>
-          <div className="accept"><Icon name="qr" /><b>QR codes</b><span>Coming soon</span></div>
+          <Link className="accept" to="/messages"><Icon name="msg" /><b>Messages</b><span>SMS and WhatsApp text</span></Link>
+          <Link className="accept" to="/qr"><Icon name="qr" /><b>QR codes</b><span>From a screenshot</span></Link>
         </div>
       </div>
 

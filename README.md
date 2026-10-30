@@ -28,6 +28,15 @@ Each category gets a grade, and the site gets an overall risk score of Low, Medi
   to another site, a brand's favicon or images copied. Pages are also opened in a sandboxed headless
   browser, so forms built by JavaScript are found too.
 
+**Messages and QR codes**
+
+- **Message check** (`/messages`). Paste an SMS or WhatsApp message, in English or Hinglish. Artemis matches
+  known scam wording with written rules (`messages.py`), highlights the words and explains them, and checks
+  up to 5 links automatically, plus any UPI IDs. Message text is never stored or logged. The hand-written test
+  set in `tests/data/messages.jsonl` guards against regressions; it isn't a measure of real-world accuracy.
+- **QR check** (`/qr`). Reads a QR screenshot in the browser, so the image is never uploaded, then runs the
+  payment or link check on what the code contains.
+
 **Payments**
 
 Results include a Payment section whenever a payment is involved, with a verdict of "No payment warning

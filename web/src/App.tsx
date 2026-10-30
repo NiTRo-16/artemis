@@ -6,7 +6,9 @@ import { Frame } from "./components/Frame";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { MessagePage } from "./pages/MessagePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { QrPage } from "./pages/QrPage";
 import { ResultPage, SharedPage } from "./pages/ResultPage";
 import { ScanPage } from "./pages/ScanPage";
 
@@ -33,8 +35,8 @@ export function App() {
         <Route path="/scan/:id" element={<ResultPage />} />
         <Route path="/r/:id" element={<SharedPage />} />
         <Route path="/history" element={<HistoryPage />} />
-        <Route path="/messages" element={<ComingSoonPage tool="messages" />} />
-        <Route path="/qr" element={<ComingSoonPage tool="qr" />} />
+        <Route path="/messages" element={<MessagePage />} />
+        <Route path="/qr" element={<QrPage />} />
         <Route path="/watch" element={<ComingSoonPage tool="watch" />} />
         <Route path="/developers" element={<ComingSoonPage tool="developers" />} />
         <Route path="/verify" element={<EmailLink mode="verify" />} />

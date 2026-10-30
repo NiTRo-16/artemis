@@ -7,8 +7,8 @@ import { Icon } from "./ui";
 
 export const TOOLS = [
   { to: "/", label: "Scan", icon: "scan", end: true },
-  { to: "/messages", label: "Message check", icon: "msg", soon: true },
-  { to: "/qr", label: "QR and UPI", icon: "qr", soon: true },
+  { to: "/messages", label: "Message check", icon: "msg" },
+  { to: "/qr", label: "QR and UPI", icon: "qr" },
   { to: "/watch", label: "Domain watch", icon: "watch", soon: true },
   { to: "/history", label: "History", icon: "history" },
   { to: "/developers", label: "API", icon: "code", soon: true },

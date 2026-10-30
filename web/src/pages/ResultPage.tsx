@@ -180,13 +180,13 @@ function Findings({ findings }: { findings: Finding[] }) {
 
 const PAYMENT_KIND: Record<string, string> = { upi: "UPI payment", provider: "Payment page", page: "Payment form on this page" };
 
-function PaymentCard({ payment }: { payment: Payment }) {
+export function PaymentCard({ payment }: { payment: Payment }) {
   return (
     <section className={`card level-${payment.level}`}>
       <p className="eyebrow">{PAYMENT_KIND[payment.kind] ?? "Payment"}</p>
       <h3>{payment.verdict}</h3>
       <p className="sub">{payment.summary}</p>
-      <Signals signals={payment.signals} />
+      <Signals signals={payment.signals.filter((s) => s.text !== payment.summary)} />
       <dl className="facts">
         {payment.facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>

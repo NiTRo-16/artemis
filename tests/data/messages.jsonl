@@ -1,0 +1,44 @@
+{"text": "Dear Customer, your SBI YONO account will be BLOCKED today. Update your PAN immediately: http://sbi-kyc-update.example/pan", "script": "account_block"}
+{"text": "Aapka khata aaj band ho jayega. Turant KYC update karein: sbi-kyc.top/update", "script": "account_block"}
+{"text": "Your KYC has expired. Complete verification within 24 hours or your HDFC netbanking will be suspended.", "script": "account_block"}
+{"text": "Dear consumer, your electricity will be disconnected tonight at 9.30 pm because your last bill was not updated. Call 9000000000 immediately.", "script": "electricity"}
+{"text": "Priya upbhokta, aaj raat aapki bijli kat jayegi. Bill update ke liye turant call karein.", "script": "electricity"}
+{"text": "India Post: your parcel is held at our warehouse because the address is incomplete. Pay Rs 25 fee: indiapost-track.top/fee", "script": "parcel"}
+{"text": "Your courier is stuck at customs. Pay the customs charges today to release it.", "script": "parcel"}
+{"text": "This is CBI. An illegal parcel in your name was seized. An arrest warrant has been issued. Stay on this video call.", "script": "digital_arrest"}
+{"text": "You are under digital arrest. Do not tell anyone. Transfer the money for verification.", "script": "digital_arrest"}
+{"text": "Mumbai police ne aapke naam par case darj kiya hai. Giraftari se bachne ke liye turant call karein.", "script": "digital_arrest"}
+{"text": "Pay Rs 1 to receive your refund of Rs 4,999. Send to refund.desk@okaxis to verify.", "script": "pay_to_receive"}
+{"text": "Refund ke liye apna UPI PIN daalein, paisa turant mil jayega.", "script": "pay_to_receive"}
+{"text": "Congratulations! You have won Rs 25,00,000 in the KBC lucky draw. Claim your prize now.", "script": "prize"}
+{"text": "Badhai ho! Aapki lottery lagi hai. Inaam paane ke liye is number par call karein.", "script": "prize"}
+{"text": "Sir please share the OTP you just received so we can stop the wrong transaction.", "script": "asks_secret"}
+{"text": "Aapke mobile par jo OTP aaya hai woh batayein, tabhi refund hoga.", "script": "asks_secret"}
+{"text": "To fix your account please install AnyDesk and give me the code on the screen.", "script": "screen_share"}
+{"text": "Customer care: TeamViewer download karke code bhejiye, hum problem theek kar denge.", "script": "screen_share"}
+{"text": "Your RTO challan is pending. Download the app now: http://rto-challan.example/parivahan.apk", "script": "app_link"}
+{"text": "Earn Rs 5000 daily from home. Just like YouTube videos and get paid. Join on WhatsApp.", "script": "job", "level": "caution"}
+{"text": "Ghar baithe kamai karein! Part time job, roz Rs 3000. Abhi message karein.", "script": "job", "level": "caution"}
+{"text": "Guaranteed returns! Double your money in 30 days with our crypto trading group.", "script": "investment", "level": "caution"}
+{"text": "Instant loan approved up to Rs 5 lakh with no documents. Apply now.", "script": "loan", "level": "caution"}
+{"text": "Hi mum, this is my new number, I'm in hospital and my phone broke. Please send money urgently.", "script": "family", "level": "caution"}
+{"genuine": true, "text": "482913 is your OTP for login to your HDFC Bank NetBanking. Do not share it with anyone. HDFC Bank will never ask for it."}
+{"genuine": true, "text": "Your OTP is 7741. Never share your OTP with anyone, including bank staff."}
+{"genuine": true, "text": "OTP kisi ke saath share na karein. Aapka OTP 5521 hai."}
+{"genuine": true, "text": "Your Amazon order is out for delivery. Share OTP 4432 with the delivery agent to receive it."}
+{"genuine": true, "text": "Rs 500.00 debited from A/c XX1234 on 29-10-26 to VPA shop.name@okaxis. Not you? Call 18001234 to block."}
+{"genuine": true, "text": "Rs 25,000 credited to your account XX9981. Available balance Rs 41,220.55."}
+{"genuine": true, "text": "Your parcel with tracking ID EE123456789IN was delivered at 2.15 pm. Thank you for using India Post."}
+{"genuine": true, "text": "Your package is out for delivery today. Pay Rs 499 cash on delivery to the courier."}
+{"genuine": true, "text": "Reminder: your appointment with Dr. Sharma is tomorrow at 11 am. Reply C to cancel."}
+{"genuine": true, "text": "Your refund of Rs 200 has been processed to your UPI account and should arrive in 2 days."}
+{"genuine": true, "text": "Your card ending 4411 has been blocked as per your request. Visit your branch for a new card."}
+{"genuine": true, "text": "Your KYC is due for renewal. Please visit your nearest branch with your documents."}
+{"genuine": true, "text": "Power will be cut off tomorrow from 10 am to 2 pm for maintenance work in your area."}
+{"genuine": true, "text": "Beware of fraud: police never place people under digital arrest. Report such calls on 1930."}
+{"genuine": true, "text": "Fraud alert: we will never ask you to install AnyDesk or share your screen."}
+{"genuine": true, "text": "Bhai kal movie chalein? Abhi ticket book kar leta hoon."}
+{"genuine": true, "text": "Can you send me the notes from today's class? I need them urgently before the exam."}
+{"genuine": true, "text": "Happy birthday! Hope you have a wonderful day. Party at my place tonight."}
+{"genuine": true, "text": "Your electricity bill of Rs 840 is due on 5 Nov. Pay on the official app to avoid a late fee."}
+{"genuine": true, "text": "Update your email address in your profile at any time from the settings page."}
