@@ -79,7 +79,7 @@ export function ResultView({ report, shareId, shared = false }: { report: Report
             {report.risk && <span className={`verdict ${tone}`}><span className="dot" />{report.risk.label.toUpperCase()} RISK
               {report.risk.score != null && ` · ${report.risk.score}`}</span>}
             {!upi && report.resolves === false && <span className="verdict none"><span className="dot" />OFFLINE</span>}
-            <span className="small">{upi ? report.payment?.verdict : report.impersonation?.verdict}</span>
+            <span className="main-result">{upi ? report.payment?.verdict : report.impersonation?.verdict}</span>
           </div>
         </div>
         <div className="actions">

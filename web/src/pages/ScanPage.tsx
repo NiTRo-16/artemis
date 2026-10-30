@@ -1,10 +1,12 @@
 // Home: the scan box, and a live panel that fills in as each check finishes.
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
+import { useAccount } from "../account";
 import { startScan } from "../api";
+import { RiskDialog } from "../components/ReportDialogs";
 import { Icon, RiskRing, StatusTag } from "../components/ui";
 import { matchingRecent, rememberSearch, saveRecent } from "../recent";
-import { riskTone } from "../report";
+import { riskTone, safeUrl } from "../report";
 import type { Report, ScanEvent, StepStatus } from "../types";
 
 export const STEPS: [string, string, string][] = [
@@ -27,6 +29,8 @@ export function ScanPage() {
   const [error, setError] = useState("");
   const [recent, setRecent] = useState<string[]>([]);
   const [active, setActive] = useState(-1);
+  const [warning, setWarning] = useState(false);
+  const { settings } = useAccount();
   const source = useRef<EventSource | null>(null);
 
   useEffect(() => () => source.current?.close(), []);
@@ -112,6 +116,7 @@ export function ScanPage() {
   const report = live?.report ?? null;
   const done = STEPS.filter(([key]) => live?.steps[key]).length;
   const score = report ? report.risk?.score ?? null : null;
+  const url = safeUrl(report?.visit?.url);
 
   return (
     <section className="hero">
@@ -151,12 +156,6 @@ export function ScanPage() {
             <p className="note small">This looks like a whole message. <Link to="/messages" state={{ text: target }}>Check it with Message check</Link></p>
           )}
         </form>
-        <div className="accepts">
-          <div className="accept"><Icon name="link" /><b>Websites</b><span>Domains and full links</span></div>
-          <div className="accept"><Icon name="upi" /><b>UPI links</b><span>Payee, note and amount</span></div>
-          <Link className="accept" to="/messages"><Icon name="msg" /><b>Messages</b><span>SMS and WhatsApp text</span></Link>
-          <Link className="accept" to="/qr"><Icon name="qr" /><b>QR codes</b><span>From a screenshot</span></Link>
-        </div>
       </div>
 
       <div className="panel" aria-live="polite">
@@ -177,15 +176,25 @@ export function ScanPage() {
               label={report && report.risk?.score == null ? "OFFLINE" : "RISK"} />
           </div>
         )}
-        <div className="panel-foot">
-          <span className="small">{live?.error || (report ? summary(report) : busy ? "Each check appears as it finishes." : "Results appear here as each check finishes.")}</span>
-          {report && (
-            <button className="btn" type="button"
-              onClick={() => navigate(live?.id ? `/scan/${live.id}` : "/scan/upi", { state: { report, target: live?.target } })}>
-              Open full report
-            </button>
-          )}
-        </div>
+        {report ? (
+          <div className="panel-result">
+            <p className="main-result">{summary(report)}</p>
+            <div className="actions">
+              {url && report.visit?.allowed && <a className="btn btn-primary" href={url} target={settings.same_tab ? "_self" : "_blank"}
+                rel="noopener noreferrer">Continue to site</a>}
+              {url && !report.visit?.allowed && <button className="btn btn-danger" type="button" onClick={() => setWarning(true)}>Continue anyway</button>}
+              <button className="btn" type="button"
+                onClick={() => navigate(live?.id ? `/scan/${live.id}` : "/scan/upi", { state: { report, target: live?.target } })}>
+                Open full report
+              </button>
+            </div>
+            <RiskDialog report={report} open={warning} onClose={() => setWarning(false)} />
+          </div>
+        ) : (
+          <div className="panel-foot">
+            <span className="small">{live?.error || (busy ? "Each check appears as it finishes." : "Results appear here as each check finishes.")}</span>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -193,6 +202,7 @@ export function ScanPage() {
 
 function summary(report: Report): string {
   if (report.kind === "upi") return report.payment?.verdict ?? "";
+  if (report.resolves === false) return "Offline: this address doesn't load.";
   if (report.visit?.allowed) return "No problems found. The full report has the details.";
   return `${report.risk?.label ?? "Unknown"} risk. See the full report before you visit.`;
 }
